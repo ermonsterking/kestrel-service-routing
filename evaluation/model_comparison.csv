@@ -1,0 +1,4 @@
+experiment,features,model,validation_accuracy,improvement_vs_baseline_pp
+Baseline,"Word TF-IDF (1,2)",LinearSVC,0.9409,0.0
+Experiment 2,Word TF-IDF + Character TF-IDF,LinearSVC,0.9566,1.5700000000000047
+Experiment 3,Word TF-IDF + Character TF-IDF + channel/product/warranty/source,LinearSVC,0.9649,2.400000000000002

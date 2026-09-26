@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+.env.*
+
+# Client-provided confidential data
+data/
+
+# Client reference documents
+references/
+
+# Model artifacts
+models/
+
+# Generated prediction outputs
+outputs/
+
+# Evaluation files containing client-level request data
+evaluation/validation_errors.csv
+
+# Local logs
+*.log
+
+# OS/editor files
+.DS_Store
+.vscode/
+
+# Test/cache files
+.pytest_cache/

@@ -1,0 +1,34 @@
+target,predicted_team,count
+Repairs,Filters & Consumables,11
+Repairs,Billing,7
+Repairs,Warranty Claims,6
+Repairs,Product Advice,3
+Filters & Consumables,Warranty Claims,3
+Returns & Replacement,Installs & Demo,3
+Returns & Replacement,Warranty Claims,3
+Returns & Replacement,Filters & Consumables,3
+Billing,Filters & Consumables,2
+Product Advice,Warranty Claims,2
+Billing,Warranty Claims,2
+Installs & Demo,Repairs,2
+Filters & Consumables,Installs & Demo,2
+Product Advice,Billing,2
+Product Advice,Repairs,2
+Repairs,Installs & Demo,2
+Repairs,Returns & Replacement,2
+Warranty Claims,Returns & Replacement,2
+Warranty Claims,Filters & Consumables,2
+Returns & Replacement,Product Advice,2
+Installs & Demo,Returns & Replacement,1
+Product Advice,Installs & Demo,1
+Filters & Consumables,Product Advice,1
+Filters & Consumables,Repairs,1
+Filters & Consumables,Returns & Replacement,1
+Billing,Installs & Demo,1
+Billing,Returns & Replacement,1
+Installs & Demo,Billing,1
+Installs & Demo,Product Advice,1
+Filters & Consumables,Billing,1
+Returns & Replacement,Repairs,1
+Warranty Claims,Installs & Demo,1
+Warranty Claims,Product Advice,1
