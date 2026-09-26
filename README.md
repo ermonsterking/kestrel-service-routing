@@ -1,17 +1,47 @@
-Absolutely. Below is the **complete consolidated `README.md`**. You can **replace your current README.md entirely** with this content.
-
-````markdown
 # Kestrel Home — Service Request Routing
 
-> An end-to-end machine learning system for automatically routing Kestrel Home customer service requests to the appropriate service team.
+An end-to-end machine learning system for automatically routing Kestrel Home customer service requests to the appropriate service team.
+
+**Validation accuracy: 96.49%** (client target: 90%)
+
+---
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Objective](#objective)
+- [Tools & Technologies](#tools--technologies)
+- [Dataset](#dataset)
+- [Service Teams](#service-teams)
+- [Data Understanding & EDA](#data-understanding--eda)
+- [Modeling Approach](#modeling-approach)
+- [Feature Engineering](#feature-engineering)
+- [Model Architecture](#model-architecture)
+- [Classifier](#classifier)
+- [Model Experiments](#model-experiments)
+- [Validation Strategy](#validation-strategy)
+- [Results](#results)
+- [Leakage Controls](#leakage-controls)
+- [Error Analysis](#error-analysis)
+- [Prediction Generation](#prediction-generation)
+- [API](#api)
+- [User Interface](#user-interface)
+- [Testing](#testing)
+- [Repository Structure](#repository-structure)
+- [Setup](#setup)
+- [Complete Workflow](#complete-workflow)
+- [Business Considerations](#business-considerations)
+- [Deployment Considerations](#deployment-considerations)
+- [Monday Handoff](#monday-handoff)
+- [Confidentiality](#confidentiality)
+- [AI Usage](#ai-usage)
+- [Key Takeaways](#key-takeaways)
 
 ---
 
 ## Introduction
 
-Kestrel Home Appliances receives customer service requests across multiple channels, including chat, WhatsApp, IVR, and email.
-
-Each request needs to be routed to one of seven service teams:
+Kestrel Home Appliances receives customer service requests across multiple channels, including chat, WhatsApp, IVR, and email. Each request needs to be routed to one of seven service teams:
 
 - Billing
 - Filters & Consumables
@@ -23,9 +53,9 @@ Each request needs to be routed to one of seven service teams:
 
 The existing routing process uses a vendor routing bot. The objective of this project is to build a reproducible machine learning system that learns from historical routing decisions and predicts the appropriate service team for new customer requests.
 
-The solution uses a lightweight local NLP classification pipeline instead of a paid LLM or external AI API. This makes the system reproducible, inexpensive to run, and suitable for deployment as an internal service.
+The solution uses a lightweight local NLP classification pipeline instead of a paid LLM or external AI API, making the system reproducible, inexpensive to run, and suitable for deployment as an internal service.
 
-The complete workflow is:
+**Workflow:**
 
 ```text
 Historical Data
@@ -51,11 +81,11 @@ FastAPI Service
 Streamlit UI
       ↓
 Automated Testing
-````
+```
 
 ---
 
-# Objective
+## Objective
 
 The primary objective is to build a machine learning classifier that reproduces the historical routing decision (`team_label`) with at least **90% validation accuracy**.
 
@@ -74,86 +104,62 @@ The system is designed to:
 
 ### Target
 
-The client's stated target is:
-
 > **90%+ accuracy against the historical routing labels.**
 
 The final model achieved **96.49% chronological validation accuracy**.
 
 ---
 
-# Tools & Technologies
+## Tools & Technologies
 
-## Programming Language
+**Programming Language**
+- Python 3.12+
 
-* Python 3.12+
+**Machine Learning**
+- scikit-learn, LinearSVC, TF-IDF, OneHotEncoder
 
-## Machine Learning
+**Data Processing**
+- pandas, NumPy
 
-* scikit-learn
-* LinearSVC
-* TF-IDF
-* OneHotEncoder
+**Model Persistence**
+- joblib
 
-## Data Processing
+**Backend**
+- FastAPI, Uvicorn, Pydantic
 
-* pandas
-* NumPy
+**Frontend / Demo**
+- Streamlit
 
-## Model Persistence
+**Testing**
+- pytest, FastAPI TestClient, HTTPX
 
-* joblib
+**Development**
+- VS Code, Python virtual environment, Ubuntu/Linux
 
-## Backend
-
-* FastAPI
-* Uvicorn
-* Pydantic
-
-## Frontend / Demo
-
-* Streamlit
-
-## Testing
-
-* pytest
-* FastAPI TestClient
-* HTTPX
-
-## Development
-
-* VS Code
-* Python virtual environment
-* Ubuntu/Linux
-
----
-
-# Libraries Used
+### Libraries Used
 
 | Library        | Purpose                                               |
-| -------------- | ----------------------------------------------------- |
-| `pandas`       | Data loading, transformation and analysis             |
-| `numpy`        | Numerical operations                                  |
-| `scikit-learn` | Feature engineering, preprocessing and classification |
-| `scipy`        | Scientific computing dependency                       |
-| `joblib`       | Model serialization and loading                       |
-| `fastapi`      | REST API implementation                               |
-| `uvicorn`      | ASGI server for the API                               |
-| `streamlit`    | Interactive demonstration UI                          |
-| `pydantic`     | API input validation                                  |
-| `requests`     | UI-to-API HTTP communication                          |
-| `pytest`       | Automated testing                                     |
-| `httpx`        | API test client support                               |
+| -------------- | ------------------------------------------------------ |
+| `pandas`       | Data loading, transformation and analysis              |
+| `numpy`        | Numerical operations                                    |
+| `scikit-learn` | Feature engineering, preprocessing and classification   |
+| `scipy`        | Scientific computing dependency                          |
+| `joblib`       | Model serialization and loading                          |
+| `fastapi`      | REST API implementation                                  |
+| `uvicorn`      | ASGI server for the API                                   |
+| `streamlit`    | Interactive demonstration UI                               |
+| `pydantic`     | API input validation                                        |
+| `requests`     | UI-to-API HTTP communication                                 |
+| `pytest`       | Automated testing                                              |
+| `httpx`        | API test client support                                          |
 
 ---
 
-# Dataset
+## Dataset
 
 The project uses approximately 18 months of labelled historical service requests.
 
-## Training Dataset
-
-The labelled training dataset contains:
+### Training Dataset
 
 **10,822 requests**
 
@@ -170,15 +176,11 @@ source
 team_label
 ```
 
-## Test Dataset
+### Test Dataset
 
-The unlabelled test dataset contains:
+**2,178 requests** — same request-time fields as training data, excluding `team_label`.
 
-**2,178 requests**
-
-It contains the same request-time fields as the training data except for `team_label`.
-
-## Resolution Data
+### Resolution Data
 
 A separate resolution log contains:
 
@@ -190,85 +192,51 @@ transfers
 resolved_at
 ```
 
-This data is used for operational analysis and error investigation.
+Used for operational analysis and error investigation only. Post-routing information from the resolution log is deliberately excluded from the model's feature set.
 
-Post-routing information from the resolution log is deliberately excluded from the model's feature set.
+### Data Period
 
-## Data Period
+| Dataset | Period |
+|---|---|
+| Training | 2025-04-01 → 2026-06-30 |
+| Test | 2026-07-01 → 2026-09-30 |
 
-Training data:
+### Data Sources
 
-```text
-2025-04-01 → 2026-06-30
-```
-
-Test data:
-
-```text
-2026-07-01 → 2026-09-30
-```
-
-## Data Sources
-
-Requests originate from:
-
-* CRM
-* Legacy Zoho system
-
-The system migration occurred during the historical period, so `source` is also included as a request-time feature.
+Requests originate from **CRM** and the **legacy Zoho system**. The system migration occurred during the historical period, so `source` is included as a request-time feature.
 
 ---
 
-# Service Teams
+## Service Teams
 
-The current routing system contains seven service teams:
+| Team                  | Primary Responsibility                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| Billing               | Invoices, GST, payment issues, refunds, EMI and coupons                                 |
+| Filters & Consumables | Filters, candles, membranes, jars, brushes, blades, AMC kits and spares                  |
+| Installs & Demo       | Product installation, demonstrations and wall mounting                                    |
+| Product Advice        | Product usage and pre/post-purchase questions without a fault                              |
+| Repairs               | Product faults, breakdowns, error codes, leaks, noise and technician-required issues         |
+| Returns & Replacement | Damaged, wrong or incomplete deliveries, returns and exchanges                                 |
+| Warranty Claims       | Warranty registration, coverage and warranty claim requests                                     |
 
-| Team                  | Primary responsibility                                                               |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| Billing               | Invoices, GST, payment issues, refunds, EMI and coupons                              |
-| Filters & Consumables | Filters, candles, membranes, jars, brushes, blades, AMC kits and spares              |
-| Installs & Demo       | Product installation, demonstrations and wall mounting                               |
-| Product Advice        | Product usage and pre/post-purchase questions without a fault                        |
-| Repairs               | Product faults, breakdowns, error codes, leaks, noise and technician-required issues |
-| Returns & Replacement | Damaged, wrong or incomplete deliveries, returns and exchanges                       |
-| Warranty Claims       | Warranty registration, coverage and warranty claim requests                          |
-
-## Historical Team Name Normalization
+### Historical Team Name Normalization
 
 Two historical team names were renamed during the data period:
 
 ```text
-Installations
-      ↓
-Installs & Demo
-
-Consumables
-      ↓
-Filters & Consumables
+Installations       →   Installs & Demo
+Consumables          →   Filters & Consumables
 ```
 
-These historical labels were normalized before training and evaluation so that the final classifier predicts the current seven-team structure.
+These historical labels were normalized before training and evaluation so the final classifier predicts the current seven-team structure.
 
 ---
 
-# Data Understanding & EDA
+## Data Understanding & EDA
 
-Initial analysis was performed before model development to understand:
+Initial analysis covered dataset size and schema, missing values, duplicate records, class/channel/product/warranty distribution, historical data sources, request-text characteristics, transfer patterns, first-team vs. final-team routing, and legacy data quality issues.
 
-* Dataset size and schema
-* Missing values
-* Duplicate records
-* Class distribution
-* Channel distribution
-* Product distribution
-* Warranty distribution
-* Historical data sources
-* Request-text characteristics
-* Transfer patterns
-* First-team versus final-team routing
-* Legacy data quality issues
-
-## Dataset Summary
+### Dataset Summary
 
 | Dataset        |   Rows |
 | -------------- | -----: |
@@ -279,48 +247,31 @@ Initial analysis was performed before model development to understand:
 
 No missing values or duplicate rows were found in the main training, test, and resolution datasets.
 
-## Historical Routing Analysis
+### Historical Routing Analysis
 
-The resolution data contained:
-
-* **3,902 total transfers**
-* **2,696 requests with at least one transfer**
-* **2,471 first-team/final-team mismatches** after normalizing historical team names
+- **3,902** total transfers
+- **2,696** requests with at least one transfer
+- **2,471** first-team/final-team mismatches after normalizing historical team names
 
 These metrics were used for operational analysis only and were not used as model features.
 
-## Data Quality Observation
+### Data Quality Observation
 
-Some older legacy Zoho requests contain text encoding artifacts. These were retained rather than manually rewriting customer messages so that the model evaluation remains representative of the supplied historical data.
-
----
-
-# Modeling Approach
-
-The routing problem is treated as a **multi-class text classification problem**.
-
-The target variable is:
-
-```text
-team_label
-```
-
-which represents the service queue assigned to the customer request by the historical routing system.
-
-The final classifier predicts one of the seven normalized service teams.
+Some older legacy Zoho requests contain text encoding artifacts. These were retained rather than manually rewritten so that model evaluation remains representative of the supplied historical data.
 
 ---
 
-# Feature Engineering
+## Modeling Approach
 
-The final model uses two types of features:
+The routing problem is treated as a **multi-class text classification problem**. The target variable, `team_label`, represents the service queue assigned to the customer request by the historical routing system. The final classifier predicts one of the seven normalized service teams.
 
-1. Customer request text features
-2. Structured request metadata
+---
 
-## 1. Word-Level TF-IDF
+## Feature Engineering
 
-The `request_text` field is converted into TF-IDF features using:
+The final model uses two types of features: customer request text and structured request metadata.
+
+### 1. Word-Level TF-IDF
 
 ```text
 ngram_range = (1, 2)
@@ -328,38 +279,9 @@ min_df = 2
 sublinear_tf = True
 ```
 
-This captures:
+Captures individual words, two-word phrases, routing terminology, and domain-specific expressions. For example, `"water purifier leaking"` produces features such as `water`, `purifier`, `leaking`, `water purifier`, `purifier leaking`.
 
-* Individual words
-* Two-word phrases
-* Important routing terminology
-* Domain-specific expressions
-
-For example:
-
-```text
-"water purifier leaking"
-```
-
-can produce features such as:
-
-```text
-water
-purifier
-leaking
-water purifier
-purifier leaking
-```
-
-TF-IDF gives higher importance to terms that are informative for a particular request while reducing the influence of very common terms.
-
----
-
-# 2. Character-Level TF-IDF
-
-Character-level TF-IDF features are also extracted from `request_text`.
-
-Configuration:
+### 2. Character-Level TF-IDF
 
 ```text
 analyzer = char_wb
@@ -368,23 +290,11 @@ min_df = 2
 sublinear_tf = True
 ```
 
-Character features are useful for customer-service text because requests may contain:
+Useful for customer-service text containing spelling variations, abbreviations, informal language, typos, partial words, product-specific terminology, and legacy encoding artifacts.
 
-* Spelling variations
-* Abbreviations
-* Informal language
-* Typographical errors
-* Partial words
-* Product-specific terminology
-* Legacy encoding artifacts
+### 3. Structured Metadata
 
----
-
-# 3. Structured Metadata
-
-The model also uses request metadata that would be available when the customer request is created.
-
-The categorical fields are:
+Categorical fields available at request-creation time:
 
 ```text
 channel
@@ -393,28 +303,13 @@ warranty_status
 source
 ```
 
-These features are encoded using:
+Encoded using `OneHotEncoder(handle_unknown="ignore")`.
 
-```python
-OneHotEncoder(handle_unknown="ignore")
-```
-
-### Why metadata is useful
-
-Two requests with similar wording may require different routing depending on their context.
-
-For example:
-
-* Product family can distinguish appliance-specific requests.
-* Warranty status can provide useful context for warranty-related requests.
-* Channel can capture differences in request language across chat, IVR, email and WhatsApp.
-* Source identifies whether the request originated from CRM or the legacy system.
+**Why metadata is useful:** two requests with similar wording may require different routing depending on context — product family distinguishes appliance-specific requests, warranty status contextualizes warranty-related requests, channel captures language differences across chat/IVR/email/WhatsApp, and source identifies CRM vs. legacy origin.
 
 ---
 
-# Model Architecture
-
-The final feature pipeline combines all feature groups using a `ColumnTransformer`.
+## Model Architecture
 
 ```text
                          Request
@@ -441,11 +336,11 @@ The final feature pipeline combines all feature groups using a `ColumnTransforme
                     Service Team Label
 ```
 
+Features are combined using a `ColumnTransformer`.
+
 ---
 
-# Classifier
-
-The final classifier is:
+## Classifier
 
 ```python
 LinearSVC(
@@ -454,187 +349,27 @@ LinearSVC(
 )
 ```
 
-### Why LinearSVC?
+**Why LinearSVC?**
 
-LinearSVC is suitable for this problem because:
+- TF-IDF produces a high-dimensional sparse feature matrix.
+- Linear models work efficiently with sparse text features.
+- Training and inference are fast.
+- Lightweight enough for a local service.
+- No GPU required.
+- No external API required.
+- Reproducible behavior.
 
-* TF-IDF produces a high-dimensional sparse feature matrix.
-* Linear models work efficiently with sparse text features.
-* Training and inference are fast.
-* The model is lightweight enough for a local service.
-* It does not require a GPU.
-* It does not require an external API.
-* Its behavior is reproducible.
-
-`class_weight="balanced"` is used to account for differences in class frequency across the seven service teams.
+`class_weight="balanced"` accounts for class-frequency differences across the seven service teams.
 
 ---
 
-# Model Experiments
-
-Three model configurations were evaluated.
-
-## Experiment 1 — Baseline
-
-```text
-Word TF-IDF
-     ↓
-LinearSVC
-```
-
-Features:
-
-* Word unigrams
-* Word bigrams
-
-Validation accuracy:
-
-**94.09%**
-
----
-
-## Experiment 2 — Character Features
-
-```text
-Word TF-IDF
-      +
-Character TF-IDF
-      ↓
-LinearSVC
-```
-
-Validation accuracy:
-
-**95.66%**
-
-Adding character-level features improved validation accuracy by:
-
-**1.57 percentage points**
-
-compared with the baseline.
-
----
-
-## Experiment 3 — Structured Metadata
-
-The final experiment added request metadata:
-
-```text
-Word TF-IDF
-      +
-Character TF-IDF
-      +
-Channel
-      +
-Product Family
-      +
-Warranty Status
-      +
-Source
-      ↓
-LinearSVC
-```
-
-Validation accuracy:
-
-**96.49%**
-
-This improved performance by:
-
-**2.40 percentage points**
-
-compared with the baseline.
-
-The final model uses this configuration.
-
----
-
-# Final Feature Set
-
-The final model uses:
-
-```text
-request_text
-channel
-product_family
-warranty_status
-source
-```
-
-The following fields are intentionally excluded:
-
-```text
-final_team
-transfers
-resolved_at
-```
-
-These fields contain information that becomes available after the original routing decision and therefore would not be available when making a new routing prediction.
-
----
-
-# Validation Strategy
-
-Because the supplied test data represents a future time period, the project uses a **chronological validation split** rather than a random train/test split.
-
-The complete labelled dataset was sorted by `created_at_ist`.
-
-The earliest 80% of requests were used for training and the latest 20% were used for validation.
-
-## Split
-
-| Dataset    | Requests | Period                  |
-| ---------- | -------: | ----------------------- |
-| Training   |    8,657 | 2025-04-01 → 2026-03-30 |
-| Validation |    2,165 | 2026-03-30 → 2026-06-30 |
-
-This approach better approximates the real deployment scenario because the model is evaluated on requests that occur later in time than the requests used for training.
-
-### Why not random split?
-
-A random split could place very similar requests from the same historical period into both training and validation.
-
-That can produce an overly optimistic estimate of how the model will perform on future requests.
-
-A chronological split provides a more realistic estimate of temporal generalization.
-
----
-
-# Results
-
-The final model achieved **96.49% accuracy** on the chronological validation set.
-
-This exceeds the client's target of **90% accuracy** by **6.49 percentage points**.
-
-## Validation Performance
-
-| Metric                |       Result |
-| --------------------- | -----------: |
-| Validation requests   |        2,165 |
-| Correct predictions   |        2,089 |
-| Incorrect predictions |           76 |
-| Accuracy              |   **96.49%** |
-| Error rate            |    **3.51%** |
-| Client target         |       90.00% |
-| Margin above target   | **+6.49 pp** |
-
-The final model was then retrained on the complete set of **10,822 labelled requests** before generating predictions for the 2,178 unlabelled test requests.
-
----
-
-# Model Comparison
-
-Three model configurations were evaluated during development.
+## Model Experiments
 
 | Experiment   | Features                                      | Model     | Validation Accuracy |
-| ------------ | --------------------------------------------- | --------- | ------------------: |
-| Baseline     | Word TF-IDF                                   | LinearSVC |              94.09% |
-| Experiment 2 | Word + Character TF-IDF                       | LinearSVC |              95.66% |
-| Experiment 3 | Word + Character TF-IDF + Structured Metadata | LinearSVC |          **96.49%** |
-
-## Improvement over baseline
-
-The progression was:
+| ------------ | ---------------------------------------------- | --------- | -------------------: |
+| Baseline     | Word TF-IDF                                    | LinearSVC |               94.09% |
+| Experiment 2 | Word + Character TF-IDF                        | LinearSVC |               95.66% |
+| Experiment 3 | Word + Character TF-IDF + Structured Metadata  | LinearSVC |           **96.49%** |
 
 ```text
 Word TF-IDF
@@ -651,18 +386,44 @@ Word + Character TF-IDF + Metadata
 96.49%
 ```
 
-The final model was selected because it produced the highest chronological validation accuracy while remaining lightweight, reproducible, and suitable for local deployment.
+The final model (Experiment 3) was selected for producing the highest chronological validation accuracy while remaining lightweight, reproducible, and suitable for local deployment.
 
 ---
 
-# Leakage Controls
+## Validation Strategy
 
-Preventing data leakage was an important part of the modeling process.
+Because the supplied test data represents a future time period, the project uses a **chronological validation split** rather than a random train/test split. The complete labelled dataset was sorted by `created_at_ist`; the earliest 80% was used for training and the latest 20% for validation.
 
-The model only uses information that would be available when a customer request is created.
+| Dataset    | Requests | Period                  |
+| ---------- | -------: | ------------------------ |
+| Training   |    8,657 | 2025-04-01 → 2026-03-30 |
+| Validation |    2,165 | 2026-03-30 → 2026-06-30 |
 
-## Features Used
+**Why not random split?** A random split could place very similar requests from the same historical period into both training and validation, producing an overly optimistic performance estimate. A chronological split provides a more realistic estimate of temporal generalization.
 
+---
+
+## Results
+
+| Metric                |       Result |
+| ---------------------- | ------------: |
+| Validation requests   |         2,165 |
+| Correct predictions   |         2,089 |
+| Incorrect predictions |            76 |
+| Accuracy              |    **96.49%** |
+| Error rate            |     **3.51%** |
+| Client target         |        90.00% |
+| Margin above target   |  **+6.49 pp** |
+
+The final model was retrained on the complete set of **10,822 labelled requests** before generating predictions for the **2,178** unlabelled test requests.
+
+---
+
+## Leakage Controls
+
+The model only uses information available when a customer request is created.
+
+**Features used:**
 ```text
 request_text
 channel
@@ -671,215 +432,107 @@ warranty_status
 source
 ```
 
-## Features Excluded
-
+**Features excluded:**
 ```text
 final_team
 transfers
 resolved_at
 ```
 
-### Why were these fields excluded?
-
-`final_team` represents the team that eventually closed the request.
-
-`transfers` represents routing activity that occurred after the initial assignment.
-
-`resolved_at` represents information generated during or after resolution.
-
-Using these fields would allow the model to learn from information that would not be available at prediction time.
-
-Therefore, these fields were used only for:
-
-* Operational analysis
-* Error investigation
-* Understanding historical routing behavior
-
-They were never provided to the classifier.
+`final_team` represents the team that eventually closed the request. `transfers` represents routing activity after the initial assignment. `resolved_at` is generated during or after resolution. Using these fields would allow the model to learn from information unavailable at prediction time — they were used only for operational analysis, error investigation, and understanding historical routing behavior, never as classifier inputs.
 
 ---
 
-# Error Analysis
+## Error Analysis
 
-The final validation set contained:
+Validation set: **2,165** requests, **2,089** correct, **76** incorrect (**3.51%** error rate).
 
-```text
-2,165 requests
-2,089 correct
-76 incorrect
-```
-
-This corresponds to an error rate of:
-
-**3.51%**
-
-The complete validation errors are stored in:
-
+Full artifacts:
 ```text
 evaluation/validation_errors.csv
-```
-
-The confusion-pair analysis is stored in:
-
-```text
 evaluation/confusion_pairs.csv
 ```
 
-## Top Confusion Patterns
+### Top Confusion Patterns
 
 | Actual Team           | Predicted Team        | Cases |
-| --------------------- | --------------------- | ----: |
-| Repairs               | Filters & Consumables |    11 |
-| Repairs               | Billing               |     7 |
-| Repairs               | Warranty Claims       |     6 |
-| Repairs               | Product Advice        |     3 |
-| Filters & Consumables | Warranty Claims       |     3 |
-| Returns & Replacement | Installs & Demo       |     3 |
-| Returns & Replacement | Warranty Claims       |     3 |
-| Returns & Replacement | Filters & Consumables |     3 |
+| ---------------------- | ----------------------- | ----: |
+| Repairs               | Filters & Consumables  |    11 |
+| Repairs               | Billing                |     7 |
+| Repairs               | Warranty Claims        |     6 |
+| Repairs               | Product Advice         |     3 |
+| Filters & Consumables | Warranty Claims        |     3 |
+| Returns & Replacement | Installs & Demo        |     3 |
+| Returns & Replacement | Warranty Claims        |     3 |
+| Returns & Replacement | Filters & Consumables  |     3 |
 
-The largest recurring confusion was **Repairs → Filters & Consumables**.
+The largest recurring confusion is **Repairs → Filters & Consumables**.
 
----
+### Multi-Intent Requests
 
-# Multi-Intent Requests
-
-A significant portion of the remaining errors comes from requests containing multiple intents.
-
-For example:
+A significant portion of remaining errors comes from requests containing multiple intents, e.g.:
 
 ```text
 "purifier showing error code E3 purifier not working"
+"installer did not turn up for ceiling fan, ceiling fan making loud noise"
 ```
 
-The operational meaning is a product fault and therefore belongs to Repairs, but the request also contains purifier/consumable-related vocabulary.
+The model was not manually overridden for these cases, since doing so would introduce undocumented business rules and distort the historical-label objective.
 
-Another example:
-
-```text
-"installer did not turn up for ceiling fan,
-ceiling fan making loud noise"
-```
-
-contains both installation and repair-related information.
-
-These examples show that some customer requests are ambiguous or contain multiple service intents.
-
-The model was not manually overridden for these cases because doing so would introduce undocumented business rules and could distort the historical-label objective.
-
----
-
-# Error Analysis by Channel
+### Error Analysis by Channel
 
 | Channel  | Validation Requests | Errors | Error Rate |
-| -------- | ------------------: | -----: | ---------: |
-| Chat     |                 682 |     21 |      3.08% |
-| Email    |                 230 |     12 |      5.22% |
-| IVR      |                 586 |     22 |      3.75% |
-| WhatsApp |                 667 |     21 |      3.15% |
+| -------- | -------------------: | -----: | ----------: |
+| Chat     |                  682 |     21 |       3.08% |
+| Email    |                  230 |     12 |       5.22% |
+| IVR      |                  586 |     22 |       3.75% |
+| WhatsApp |                  667 |     21 |       3.15% |
 
-Email had the highest observed validation error rate at **5.22%**, although its validation sample is smaller than the other channels.
-
----
-
-# Error Analysis by Product
+### Error Analysis by Product
 
 | Product Family    | Validation Requests | Errors | Error Rate |
-| ----------------- | ------------------: | -----: | ---------: |
-| Water Purifier    |                 444 |     26 |  **5.86%** |
-| Room Heater       |                 251 |     10 |      3.98% |
-| Induction Cooktop |                 269 |      9 |      3.35% |
-| Ceiling Fan       |                 255 |      8 |      3.14% |
-| Air Fryer         |                 389 |     11 |      2.83% |
-| Robot Vacuum      |                 220 |      5 |      2.27% |
-| Mixer Grinder     |                 337 |      7 |      2.08% |
+| ------------------ | -------------------: | -----: | ----------: |
+| Water Purifier     |                  444 |     26 |   **5.86%** |
+| Room Heater        |                  251 |     10 |       3.98% |
+| Induction Cooktop  |                  269 |      9 |       3.35% |
+| Ceiling Fan        |                  255 |      8 |       3.14% |
+| Air Fryer          |                  389 |     11 |       2.83% |
+| Robot Vacuum       |                  220 |      5 |       2.27% |
+| Mixer Grinder      |                  337 |      7 |       2.08% |
 
-Water Purifier requests had the highest validation error rate at **5.86%**.
+Water Purifier requests have the highest error rate, consistent with frequent overlap between product faults, filters/consumables, warranty, installation, and payment-related language. This category should receive additional production monitoring.
 
-This is consistent with the qualitative error analysis, where purifier requests frequently combine:
+### Error Analysis by Warranty Status
 
-* Product faults
-* Filters and consumables
-* Warranty
-* Installation
-* Payment-related language
+| Warranty Status  | Validation Requests | Errors | Error Rate |
+| ----------------- | -------------------: | -----: | ----------: |
+| In Warranty       |                1,167 |     47 |       4.03% |
+| Out of Warranty   |                  541 |     14 |       2.59% |
+| Shield            |                  457 |     15 |       3.28% |
 
-This category should therefore receive additional monitoring during a production rollout.
+### Interpretation of Remaining Errors
 
----
-
-# Error Analysis by Warranty Status
-
-| Warranty Status | Validation Requests | Errors | Error Rate |
-| --------------- | ------------------: | -----: | ---------: |
-| In Warranty     |               1,167 |     47 |      4.03% |
-| Out of Warranty |                 541 |     14 |      2.59% |
-| Shield          |                 457 |     15 |      3.28% |
-
-The majority of validation requests were in warranty, and this category also contained the largest number of errors.
+Remaining errors should not automatically be treated as model defects — many involve multi-intent opening messages (e.g., Fault + Consumables, Fault + Warranty, Return + Installation). These are candidates for future work such as intent prioritization, human review for ambiguous requests, multi-intent detection, business-rule assistance, and confidence-based escalation. The current implementation deliberately keeps the model simple and reproducible rather than adding undocumented post-processing rules.
 
 ---
 
-# Interpretation of Remaining Errors
+## Prediction Generation
 
-The remaining errors should not automatically be treated as model defects.
-
-Many involve requests where the customer's opening message contains multiple service intents.
-
-Examples include:
-
-```text
-Fault + Consumables
-Fault + Warranty
-Fault + Payment
-Return + Installation
-Return + Warranty
-Installation + Fault
-```
-
-These cases are useful candidates for future improvements such as:
-
-* Intent prioritization
-* Human review for ambiguous requests
-* Multi-intent detection
-* Business-rule assistance
-* Confidence-based escalation
-
-The current implementation deliberately keeps the model simple and reproducible rather than adding undocumented post-processing rules.
-
----
-
-# Prediction Generation
-
-After model selection, the final model is retrained on all **10,822 labelled training requests**.
-
-Run:
+After model selection, the final model is retrained on all **10,822** labelled requests:
 
 ```bash
 python src/train_final.py
 ```
 
-This creates:
+Creates `models/kestrel_router.joblib`.
 
-```text
-models/kestrel_router.joblib
-```
-
-The trained model is then used to generate predictions for the **2,178 unlabelled test requests**.
-
-Run:
+Predictions for the **2,178** unlabelled test requests:
 
 ```bash
 python src/predict.py
 ```
 
-Output:
-
-```text
-outputs/predictions.csv
-```
-
-The output format is:
+Creates `outputs/predictions.csv`:
 
 ```csv
 request_id,team
@@ -888,51 +541,31 @@ SR510823,Filters & Consumables
 ...
 ```
 
-The generated file was validated against the provided sample submission.
-
-Validation checks include:
-
-* Correct number of rows
-* Correct columns
-* No duplicate request IDs
-* No missing request IDs
-* No missing team predictions
-* Exact request ID ordering
-* Only valid service-team labels
+Validated against the provided sample submission for: correct row count, correct columns, no duplicate/missing request IDs, no missing predictions, exact request ID ordering, and only valid service-team labels.
 
 ---
 
-# API
+## API
 
 The trained model is exposed through a FastAPI service.
 
-## Start the API
+**Start the API:**
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The service runs at:
+Runs at `http://127.0.0.1:8000`.
 
-```text
-http://127.0.0.1:8000
-```
-
----
-
-## Health Endpoint
+### Health Endpoint
 
 ```http
 GET /health
 ```
 
-Example:
-
 ```bash
 curl http://127.0.0.1:8000/health
 ```
-
-Response:
 
 ```json
 {
@@ -941,15 +574,13 @@ Response:
 }
 ```
 
----
-
-## Routing Endpoint
+### Routing Endpoint
 
 ```http
 POST /route
 ```
 
-Example request:
+**Example request:**
 
 ```json
 {
@@ -961,7 +592,7 @@ Example request:
 }
 ```
 
-Example response:
+**Example response:**
 
 ```json
 {
@@ -970,78 +601,40 @@ Example response:
 }
 ```
 
-The API returns a human-readable explanation alongside the prediction.
-
-The system does not report an artificial probability because `LinearSVC` does not produce calibrated probabilities.
+The API returns a human-readable explanation alongside the prediction. No artificial probability score is reported, since `LinearSVC` does not produce calibrated probabilities.
 
 ---
 
-# User Interface
+## User Interface
 
 A lightweight Streamlit interface is provided for demonstration.
 
-Start the API first:
-
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload      # terminal 1 — start the API first
+streamlit run app/ui.py            # terminal 2
 ```
 
-Then open another terminal:
-
-```bash
-streamlit run app/ui.py
-```
-
-The UI allows the user to enter:
-
-* Customer request
-* Product family
-* Warranty status
-* Channel
-* Source
-
-The interface then sends the request to the FastAPI service and displays:
-
-```text
-Predicted Team
-+
-Human-readable routing explanation
-```
+The UI accepts customer request text, product family, warranty status, channel, and source, sends the request to the FastAPI service, and displays the predicted team with a human-readable routing explanation.
 
 ---
 
-# Testing
-
-Automated tests are provided using pytest.
-
-Run:
+## Testing
 
 ```bash
 pytest -q
 ```
 
-The test suite checks:
-
-* Model availability
-* API health endpoint
-* Routing endpoint
-* Request validation
-* Prediction file structure
-* Valid service-team labels
-* Duplicate request IDs
-* Missing predictions
-
-Current test result:
+The test suite checks: model availability, API health endpoint, routing endpoint, request validation, prediction file structure, valid service-team labels, duplicate request IDs, and missing predictions.
 
 ```text
 5 passed
 ```
 
-A deprecation warning may appear from the installed FastAPI/Starlette testing stack, but it does not affect the passing test suite.
+> A deprecation warning may appear from the installed FastAPI/Starlette testing stack; it does not affect the passing test suite.
 
 ---
 
-# Repository Structure
+## Repository Structure
 
 ```text
 kestrel-service-routing/
@@ -1098,54 +691,46 @@ kestrel-service-routing/
 └── requirements.txt
 ```
 
-> Confidential client data, reference documents, trained model artifacts and generated prediction files should not be committed to a public repository.
+> Confidential client data, reference documents, trained model artifacts, and generated prediction files should not be committed to a public repository.
 
 ---
 
-# Setup
+## Setup
 
-## 1. Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone <YOUR_GITHUB_REPOSITORY_URL>
 cd kestrel-service-routing
 ```
 
-## 2. Create a Virtual Environment
+### 2. Create a Virtual Environment
 
 ```bash
 python3 -m venv .venv
 ```
 
-## 3. Activate the Environment
+### 3. Activate the Environment
 
-### Linux / macOS
-
+**Linux / macOS**
 ```bash
 source .venv/bin/activate
 ```
 
-### Windows
-
+**Windows**
 ```powershell
 .venv\Scripts\activate
 ```
 
-## 4. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 5. Add Client Data Locally
+### 5. Add Client Data Locally
 
-Place the confidential project data inside:
-
-```text
-data/
-```
-
-Expected files:
+Place the confidential project data inside `data/`:
 
 ```text
 train.csv
@@ -1155,129 +740,48 @@ teams.csv
 sample_submission.csv
 ```
 
-The client reference documents should be kept locally under:
-
-```text
-reference/
-```
-
-These files are intentionally excluded from public version control.
+Client reference documents should be kept locally under `reference/`. These files are intentionally excluded from public version control.
 
 ---
 
-# Complete Workflow
+## Complete Workflow
 
-## Step 1 — Train the Final Model
-
-```bash
-python src/train_final.py
-```
-
-Creates:
-
-```text
-models/kestrel_router.joblib
-```
+| Step | Command | Output |
+|---|---|---|
+| 1. Train the final model | `python src/train_final.py` | `models/kestrel_router.joblib` |
+| 2. Generate predictions | `python src/predict.py` | `outputs/predictions.csv` |
+| 3. Run tests | `pytest -q` | `5 passed` |
+| 4. Start the API | `uvicorn app.main:app --reload` | `http://127.0.0.1:8000` |
+| 5. Start the UI (separate terminal) | `streamlit run app/ui.py` | Local browser interface |
 
 ---
 
-## Step 2 — Generate Predictions
+## Business Considerations
 
-```bash
-python src/predict.py
-```
-
-Creates:
-
-```text
-outputs/predictions.csv
-```
-
----
-
-## Step 3 — Run Tests
-
-```bash
-pytest -q
-```
-
-Expected:
-
-```text
-5 passed
-```
-
----
-
-## Step 4 — Start the API
-
-```bash
-uvicorn app.main:app --reload
-```
-
-API:
-
-```text
-http://127.0.0.1:8000
-```
-
----
-
-## Step 5 — Start the UI
-
-In another terminal:
-
-```bash
-streamlit run app/ui.py
-```
-
-The Streamlit interface will open locally in the browser.
-
----
-
-# Business Considerations
-
-The existing vendor routing bot has a stated annual license cost of:
-
-**₹3.2 lakh/year**
+The existing vendor routing bot has a stated annual license cost of **₹3.2 lakh/year**.
 
 Historical operational records contain:
 
-* **3,902 transfers**
-* **2,696 requests with at least one transfer**
-* **2,471 first-team/final-team mismatches** after normalizing historical team names
+- **3,902** transfers
+- **2,696** requests with at least one transfer
+- **2,471** first-team/final-team mismatches after normalizing historical team names
 
-The operational policy provides the following cost assumptions:
+Operational policy cost assumptions:
 
 ```text
 ₹305 per transfer
 ₹260 additional customer contact for a misdirected request
 ```
 
-Applying these assumptions to the historical records gives an illustrative operational cost estimate of approximately:
+Applying these assumptions to historical records gives an illustrative operational cost estimate of approximately **₹18.3 lakh over the 18-month training period**. This figure is an estimate based on the supplied policy assumptions and should not be interpreted as audited cost or guaranteed future savings.
 
-**₹18.3 lakh over the 18-month training period**
-
-This figure is an estimate based on the supplied policy assumptions and should not be interpreted as audited cost or guaranteed future savings.
-
-The replacement model itself is lightweight and does not require a paid LLM API.
-
-Actual production cost should be measured based on:
-
-* Hosting
-* API infrastructure
-* Monitoring
-* Logging
-* Retraining
-* Operational support
+The replacement model itself is lightweight and does not require a paid LLM API. Actual production cost should be measured based on hosting, API infrastructure, monitoring, logging, retraining, and operational support.
 
 ---
 
-# Deployment Considerations
+## Deployment Considerations
 
-The **96.49% validation accuracy** demonstrates strong historical-label matching, but offline accuracy alone does not guarantee identical production performance.
-
-A controlled rollout should monitor:
+96.49% validation accuracy demonstrates strong historical-label matching, but offline accuracy alone does not guarantee identical production performance. A controlled rollout should monitor:
 
 1. Routing accuracy
 2. Transfer rate
@@ -1288,22 +792,13 @@ A controlled rollout should monitor:
 7. Ambiguous or multi-intent requests
 8. Changes in request distribution
 
-Special attention should be given to:
-
-```text
-Water Purifier
-Repairs
-Filters & Consumables
-Warranty Claims
-```
-
-because several remaining validation errors involve overlapping intents between these categories.
+Special attention should be given to **Water Purifier**, **Repairs**, **Filters & Consumables**, and **Warranty Claims**, since several remaining validation errors involve overlapping intents between these categories.
 
 ---
 
-# Monday Handoff
+## Monday Handoff
 
-The following artifacts should be handed over to the next team:
+Artifacts handed over to the next team:
 
 1. Final model training code
 2. Model evaluation results
@@ -1315,24 +810,20 @@ The following artifacts should be handed over to the next team:
 8. Business memo
 9. Setup and deployment instructions
 
-The incoming team should be able to reproduce the model and predictions using the documented workflow.
-
 The model should be retrained or reviewed if:
 
-* Service teams change
-* Routing policy changes
-* New product categories are introduced
-* Customer request patterns change materially
-* Production transfer rates increase
-* Manual routing overrides become frequent
+- Service teams change
+- Routing policy changes
+- New product categories are introduced
+- Customer request patterns change materially
+- Production transfer rates increase
+- Manual routing overrides become frequent
 
 ---
 
-# Confidentiality
+## Confidentiality
 
-The Kestrel Home dataset and operational documents are confidential.
-
-The following files must **not** be uploaded to a public GitHub repository:
+The Kestrel Home dataset and operational documents are confidential. The following files must **not** be uploaded to a public GitHub repository:
 
 ```text
 data/train.csv
@@ -1346,38 +837,17 @@ reference/email-thread.txt
 reference/ops-policy.pdf
 ```
 
-These files should be excluded through `.gitignore`.
-
-The public repository should contain only:
-
-* Source code
-* Tests
-* Documentation
-* Sanitized evaluation summaries
-* Model methodology
-* Non-confidential project artifacts
-
-No customer request text or other client-sensitive records should be exposed publicly.
+These files should be excluded through `.gitignore`. The public repository should contain only source code, tests, documentation, sanitized evaluation summaries, model methodology, and non-confidential project artifacts. No customer request text or other client-sensitive records should be exposed publicly.
 
 ---
 
-# AI Usage
+## AI Usage
 
-AI assistance was used during development for:
-
-* Code scaffolding
-* Debugging
-* Experiment planning
-* Documentation
-* Error-analysis interpretation
-
-The final routing model itself is a local, reproducible scikit-learn pipeline and does not require an external paid AI API.
+AI assistance was used during development for code scaffolding, debugging, experiment planning, documentation, and error-analysis interpretation. The final routing model itself is a local, reproducible scikit-learn pipeline and does not require an external paid AI API.
 
 ---
 
-# Key Takeaways
-
-This project demonstrates an end-to-end machine learning workflow for service-request routing:
+## Key Takeaways
 
 ```text
 Raw Historical Requests
@@ -1413,20 +883,17 @@ Operational Error Analysis
 
 ### Final Project Metrics
 
-| Metric                           |       Result |
-| -------------------------------- | -----------: |
-| Historical labelled requests     |       10,822 |
-| Test requests                    |        2,178 |
-| Service teams                    |            7 |
-| Validation requests              |        2,165 |
-| Validation accuracy              |   **96.49%** |
-| Client target                    |      **90%** |
-| Validation error rate            |    **3.51%** |
-| Correct validation predictions   |    **2,089** |
-| Incorrect validation predictions |       **76** |
-| Automated tests                  | **5 passed** |
+| Metric                           |        Result |
+| --------------------------------- | -------------: |
+| Historical labelled requests     |         10,822 |
+| Test requests                    |          2,178 |
+| Service teams                    |              7 |
+| Validation requests              |          2,165 |
+| Validation accuracy              |     **96.49%** |
+| Client target                    |          **90%** |
+| Validation error rate            |      **3.51%** |
+| Correct validation predictions   |      **2,089** |
+| Incorrect validation predictions |         **76** |
+| Automated tests                  |  **5 passed** |
 
 The resulting system provides a lightweight and reproducible approach to service-request routing while explicitly addressing temporal validation, data leakage, historical team renaming, ambiguous requests, operational analysis, API deployment, and confidentiality.
-
-```
-```
