@@ -11,6 +11,8 @@ An end-to-end machine learning system for automatically routing Kestrel Home cus
 - [Introduction](#introduction)
 - [Objective](#objective)
 - [Tools & Technologies](#tools--technologies)
+- [Submission_Artifacts]
+ (# Submission Artifacts)
 - [Dataset](#dataset)
 - [Service Teams](#service-teams)
 - [Data Understanding & EDA](#data-understanding--eda)
@@ -36,6 +38,9 @@ An end-to-end machine learning system for automatically routing Kestrel Home cus
 - [Confidentiality](#confidentiality)
 - [AI Usage](#ai-usage)
 - [Key Takeaways](#key-takeaways)
+
+
+
 
 ---
 
@@ -135,6 +140,21 @@ The final model achieved **96.49% chronological validation accuracy**.
 
 **Development**
 - VS Code, Python virtual environment, Ubuntu/Linux
+
+## Submission Artifacts
+
+The repository contains the complete reproducible routing solution, including:
+
+- Source code for EDA, preprocessing, model experiments, final training, and prediction
+- FastAPI routing service
+- Streamlit demonstration UI
+- Automated tests
+- Aggregate model evaluation and error analysis
+- Business memo
+- `outputs/predictions.csv` containing predictions for all 2,178 test requests
+
+Client-provided training/test data, reference documents, trained model artifacts, and customer-level validation error records are intentionally excluded from version control for confidentiality.
+
 
 ### Libraries Used
 
