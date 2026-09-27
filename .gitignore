@@ -25,7 +25,8 @@ references/
 models/
 
 # Generated prediction outputs
-outputs/
+outputs/*
+!outputs/predictions.csv
 
 # Evaluation files containing client-level request data
 evaluation/validation_errors.csv
