@@ -11,8 +11,7 @@ An end-to-end machine learning system for automatically routing Kestrel Home cus
 - [Introduction](#introduction)
 - [Objective](#objective)
 - [Tools & Technologies](#tools--technologies)
-- [Submission_Artifacts]
- (# Submission Artifacts)
+- [Submission Artifacts](#submission-artifacts)
 - [Dataset](#dataset)
 - [Service Teams](#service-teams)
 - [Data Understanding & EDA](#data-understanding--eda)
