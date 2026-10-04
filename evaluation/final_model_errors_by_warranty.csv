@@ -1,0 +1,4 @@
+warranty_status,requests,errors,error_rate
+in_warranty,1167,187,0.16023993144815768
+out_of_warranty,541,85,0.15711645101663585
+shield,457,61,0.13347921225382933

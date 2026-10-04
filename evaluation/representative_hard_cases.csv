@@ -1,0 +1,31 @@
+request_id,request_text,product_family,warranty_status,channel,historical_bot,final_team,predicted_team,transfers
+SR510698,fan problem asap,Room Heater,in_warranty,ivr,Repairs,Product Advice,Repairs,2
+SR509925,help mixer grinder,Mixer Grinder,in_warranty,chat,Repairs,Filters & Consumables,Billing,2
+SR509856,mixer grinder query,Mixer Grinder,in_warranty,chat,Repairs,Returns & Replacement,Billing,2
+SR510611,"namaste, cooktop problem",Room Heater,shield,ivr,Repairs,Product Advice,Filters & Consumables,2
+SR508894,"hello team, help air fryer",Air Fryer,out_of_warranty,ivr,Repairs,Billing,Installs & Demo,2
+SR510431,"hi, machine problem thanks",Air Fryer,out_of_warranty,chat,Repairs,Warranty Claims,Repairs,2
+SR510355,complaint about room heater,Room Heater,in_warranty,email,Repairs,Product Advice,Repairs,2
+SR510364,"hi, induction cooktop query",Induction Cooktop,in_warranty,chat,Repairs,Returns & Replacement,Installs & Demo,2
+SR510053,cooktop query kindly resolve,Ceiling Fan,in_warranty,ivr,Repairs,Installs & Demo,Product Advice,2
+SR510365,service request for air fryer,Air Fryer,in_warranty,chat,Repairs,Returns & Replacement,Installs & Demo,2
+SR510231,air fryer query kindly resolve,Air Fryer,out_of_warranty,ivr,Repairs,Returns & Replacement,Product Advice,2
+SR510308,"namaste, need help with my fan",Air Fryer,shield,chat,Repairs,Warranty Claims,Billing,2
+SR510216,please call back regarding cooktop,Air Fryer,in_warranty,whatsapp,Repairs,Filters & Consumables,Billing,2
+SR510663,"good morning, water purifier query",Water Purifier,in_warranty,ivr,Filters & Consumables,Warranty Claims,Installs & Demo,2
+SR510810,sir help air fryer order KO2607425,Air Fryer,in_warranty,ivr,Repairs,Product Advice,Repairs,2
+SR510816,"hello team, water purifier problem",Water Purifier,shield,chat,Filters & Consumables,Product Advice,Filters & Consumables,2
+SR510429,water purifier query kindly resolve,Water Purifier,in_warranty,ivr,Filters & Consumables,Returns & Replacement,Product Advice,2
+SR508670,"hi, help mixer grinder pls call back",Mixer Grinder,out_of_warranty,whatsapp,Repairs,Returns & Replacement,Filters & Consumables,2
+SR509480,sir help ceiling fan order KO2601452,Ceiling Fan,in_warranty,chat,Repairs,Warranty Claims,Returns & Replacement,2
+SR509914,"good morning, air fryer query thanks",Air Fryer,in_warranty,email,Repairs,Returns & Replacement,Warranty Claims,2
+SR510438,not happy with vacuum reg no SR10765,Induction Cooktop,in_warranty,email,Repairs,Warranty Claims,Filters & Consumables,2
+SR509223,water purifier problem reg no SR96318,Water Purifier,in_warranty,ivr,Filters & Consumables,Installs & Demo,Returns & Replacement,2
+SR508766,urgent: air fryer query kindly resolve,Air Fryer,out_of_warranty,whatsapp,Repairs,Filters & Consumables,Product Advice,2
+SR509050,urgent: not happy with purifier thanks,Water Purifier,shield,ivr,Filters & Consumables,Warranty Claims,Returns & Replacement,2
+SR509094,"namaste, not happy with water purifier",Water Purifier,in_warranty,whatsapp,Filters & Consumables,Installs & Demo,Warranty Claims,2
+SR509129,"namaste, need help with my ceiling fan",Ceiling Fan,out_of_warranty,chat,Repairs,Billing,Returns & Replacement,2
+SR509375,sir complaint about ceiling fan thanks,Ceiling Fan,out_of_warranty,ivr,Repairs,Installs & Demo,Product Advice,2
+SR509780,sir help water purifier reg no SR22004,Water Purifier,in_warranty,whatsapp,Filters & Consumables,Installs & Demo,Filters & Consumables,2
+SR510361,"hello team, need help with my fan asap",Induction Cooktop,in_warranty,whatsapp,Repairs,Returns & Replacement,Billing,2
+SR510506,"namaste, complaint about purifier asap",Room Heater,shield,whatsapp,Repairs,Returns & Replacement,Billing,2

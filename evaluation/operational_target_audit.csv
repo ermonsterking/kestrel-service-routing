@@ -1,0 +1,10 @@
+metric,value
+Historical requests,10822.0
+Historical bot agreement with final_team,0.7716688227684346
+Historical bot mismatches,2471.0
+Historical mismatch rate,0.22833117723156537
+Requests with at least one transfer,2696.0
+Transfer rate,0.24912215856588432
+Chronological holdout bot accuracy,0.7667
+Chronological holdout model accuracy,0.846189
+Chronological holdout uplift,0.07948899999999992

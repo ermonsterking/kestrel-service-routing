@@ -1,0 +1,9 @@
+python src/error_analysis.pyteam_label_norm,Billing,Filters & Consumables,Installs & Demo,Product Advice,Repairs,Returns & Replacement,Warranty Claims,All
+Billing,1071,9,146,7,192,125,106,1656
+Filters & Consumables,43,872,67,40,315,56,65,1458
+Installs & Demo,7,7,1146,10,10,2,3,1185
+Product Advice,9,9,6,1135,9,4,8,1180
+Repairs,178,157,218,182,1993,214,187,3129
+Returns & Replacement,6,7,7,7,7,1132,8,1174
+Warranty Claims,4,5,6,9,8,6,1002,1040
+All,1318,1066,1596,1390,2534,1539,1379,10822

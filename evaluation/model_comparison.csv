@@ -1,4 +1,4 @@
-experiment,features,model,validation_accuracy,improvement_vs_baseline_pp
-Baseline,"Word TF-IDF (1,2)",LinearSVC,0.9409,0.0
-Experiment 2,Word TF-IDF + Character TF-IDF,LinearSVC,0.9566,1.5700000000000047
-Experiment 3,Word TF-IDF + Character TF-IDF + channel/product/warranty/source,LinearSVC,0.9649,2.400000000000002
+experiment,target,evaluation_set,features,validation_accuracy,improvement_vs_same_holdout_bot_pp
+Historical routing bot,final_team,Full historical audit,Historical bot initial routing,0.7716688227684346,0.0
+Historical routing bot,final_team,Chronological holdout,Historical bot initial routing,0.7667,0.0
+Final operational model,final_team,Chronological holdout,Word TF-IDF + character TF-IDF + request-time metadata + engineered intent features,0.846189,7.948899999999992
