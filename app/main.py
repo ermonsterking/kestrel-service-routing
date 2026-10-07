@@ -1,5 +1,6 @@
 import os
 import re
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -9,17 +10,26 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 
-MODEL_PATH = "models/kestrel_router.joblib"
+# =============================================================================
+# PATHS
+# =============================================================================
 
+MODEL_PATH = "models/kestrel_router.joblib"
+QUALITY_GATE_PATH = "evaluation/quality_gate/quality_gate_model.joblib"
+
+
+# =============================================================================
+# APP
+# =============================================================================
 
 app = FastAPI(
     title="Kestrel Home Service Request Router",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 
 # =============================================================================
-# LOAD FINAL MODEL ARTIFACT
+# LOAD FINAL ROUTER
 # =============================================================================
 
 if not os.path.exists(MODEL_PATH):
@@ -38,6 +48,19 @@ scaler = artifact["numeric_scaler"]
 
 
 # =============================================================================
+# LOAD QUALITY GATE
+# =============================================================================
+
+if not os.path.exists(QUALITY_GATE_PATH):
+    raise RuntimeError(
+        f"Quality gate model not found at {QUALITY_GATE_PATH}. "
+        "Run src/quality_gate_experiment.py first."
+    )
+
+quality_gate_model = joblib.load(QUALITY_GATE_PATH)
+
+
+# =============================================================================
 # REQUEST SCHEMA
 # =============================================================================
 
@@ -50,7 +73,7 @@ class RoutingRequest(BaseModel):
 
 
 # =============================================================================
-# EXACT SAME INTENT PATTERNS AS TRAINING
+# EXACT SAME INTENT PATTERNS AS FINAL ROUTER TRAINING
 # =============================================================================
 
 INTENT_PATTERNS = {
@@ -148,11 +171,10 @@ INTENT_PATTERNS = {
 
 
 # =============================================================================
-# EXACT SAME ENGINEERED FEATURES AS TRAINING
+# EXACT SAME ENGINEERED FEATURES AS FINAL ROUTER TRAINING
 # =============================================================================
 
 def engineered_features(df):
-
     texts = (
         df["request_text"]
         .fillna("")
@@ -163,7 +185,6 @@ def engineered_features(df):
     features = []
 
     for text in texts:
-
         row = []
 
         # Basic text structure
@@ -177,7 +198,6 @@ def engineered_features(df):
 
         # Intent keyword indicators / counts
         for patterns in INTENT_PATTERNS.values():
-
             count = 0
 
             for pattern in patterns:
@@ -191,11 +211,10 @@ def engineered_features(df):
 
 
 # =============================================================================
-# BUILD MODEL FEATURES
+# BUILD FINAL ROUTER FEATURES
 # =============================================================================
 
 def build_features(df):
-
     df = df.copy()
 
     df["request_text"] = (
@@ -237,7 +256,6 @@ def build_features(df):
         numeric_features
     )
 
-    # IMPORTANT:
     # Same feature ordering as train_final.py
     X = hstack(
         [
@@ -253,12 +271,80 @@ def build_features(df):
 
 
 # =============================================================================
-# EXPLANATION
+# QUALITY GATE INPUT
+# =============================================================================
+
+def build_quality_gate_input(request: RoutingRequest):
+    return pd.DataFrame(
+        [
+            {
+                "request_text": request.request_text,
+                "channel": request.channel,
+                "product_family": request.product_family,
+                "warranty_status": request.warranty_status,
+                "source": request.source,
+            }
+        ]
+    )
+
+
+# =============================================================================
+# QUALITY GATE RESPONSE MESSAGES
+# =============================================================================
+
+def clarification_question(request_text):
+    text = request_text.lower().strip()
+
+    if not text:
+        return "What issue are you experiencing with your product?"
+
+    if any(
+        re.search(pattern, text)
+        for pattern in [
+            r"\bhelp\b",
+            r"\bquery\b",
+            r"\bproblem\b",
+            r"\bissue\b",
+            r"\bcomplaint\b",
+            r"\bservice request\b",
+        ]
+    ):
+        return (
+            "Could you briefly describe the specific issue, "
+            "such as a fault, payment problem, installation request, "
+            "return, warranty issue, or product-usage question?"
+        )
+
+    return "What specific issue would you like us to help you with?"
+
+
+def quality_gate_reason(status):
+    if status == "DATA_CONFLICT":
+        return (
+            "The request text and selected product metadata appear "
+            "inconsistent. Please verify the product information before routing."
+        )
+
+    if status == "MULTI_INTENT":
+        return (
+            "The request appears to contain multiple issues. "
+            "The customer should identify which issue needs attention first."
+        )
+
+    if status == "NEEDS_CLARIFICATION":
+        return (
+            "The request does not contain enough specific information "
+            "to safely select a service team."
+        )
+
+    return None
+
+
+# =============================================================================
+# ROUTER EXPLANATION
 # =============================================================================
 
 def explain_prediction(team, request_text):
-
-    text = request_text.lower()
 
     if team == "Repairs":
         return (
@@ -316,6 +402,7 @@ def health():
         "status": "ok",
         "model": "kestrel_router",
         "target": "final_team",
+        "quality_gate": "enabled",
     }
 
 
@@ -325,6 +412,57 @@ def health():
 
 @app.post("/route")
 def route_request(request: RoutingRequest):
+
+    # -------------------------------------------------------------------------
+    # 1. QUALITY GATE
+    # -------------------------------------------------------------------------
+
+    quality_input = build_quality_gate_input(request)
+
+    quality_prediction = quality_gate_model.predict(
+        quality_input
+    )[0]
+
+    quality_status = str(quality_prediction)
+
+    # -------------------------------------------------------------------------
+    # 2. HANDLE NON-ROUTABLE REQUESTS
+    # -------------------------------------------------------------------------
+
+    if quality_status == "NEEDS_CLARIFICATION":
+
+        return {
+            "status": "NEEDS_CLARIFICATION",
+            "predicted_team": None,
+            "clarification_question": clarification_question(
+                request.request_text
+            ),
+            "reason": quality_gate_reason(quality_status),
+        }
+
+    if quality_status == "MULTI_INTENT":
+
+        return {
+            "status": "MULTI_INTENT",
+            "predicted_team": None,
+            "clarification_question": (
+                "Your request appears to contain multiple issues. "
+                "Which issue should be handled first?"
+            ),
+            "reason": quality_gate_reason(quality_status),
+        }
+
+    if quality_status == "DATA_CONFLICT":
+
+        return {
+            "status": "DATA_CONFLICT",
+            "predicted_team": None,
+            "reason": quality_gate_reason(quality_status),
+        }
+
+    # -------------------------------------------------------------------------
+    # 3. NORMAL ROUTING
+    # -------------------------------------------------------------------------
 
     df = pd.DataFrame(
         [
@@ -343,6 +481,7 @@ def route_request(request: RoutingRequest):
     prediction = model.predict(X)[0]
 
     return {
+        "status": "ROUTABLE",
         "predicted_team": prediction,
         "reason": explain_prediction(
             prediction,

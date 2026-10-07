@@ -1,328 +1,197 @@
 # Kestrel Home — Service Request Routing
 
-An end-to-end machine learning system for automatically routing Kestrel Home customer service requests to the appropriate service team.
+> An end-to-end machine learning system that routes Kestrel Home customer service requests to the correct service team, using a **Quality Gate → Seven-Team Router** architecture.
 
-> **Final operational-model accuracy: 84.62%**
->
-> **Historical routing bot accuracy on the same chronological holdout: 76.67%**
->
-> **Improvement: +7.95 percentage points**
+![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-LinearSVC-orange)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B)
+![Tests](https://img.shields.io/badge/tests-5%20passed-brightgreen)
+![License](https://img.shields.io/badge/data-confidential-lightgrey)
 
 ---
 
 ## Table of Contents
 
-- [Introduction](#introduction)
-- [Executive Summary](#executive-summary)
-- [Objective and Target Decision](#objective-and-target-decision)
-- [Tools & Technologies](#tools--technologies)
-- [Submission Artifacts](#submission-artifacts)
-- [Dataset](#dataset)
-- [Service Teams](#service-teams)
-- [Operational Target Audit](#operational-target-audit)
-- [Data Understanding & EDA](#data-understanding--eda)
-- [Modeling Approach](#modeling-approach)
-- [Feature Engineering](#feature-engineering)
-- [Model Architecture](#model-architecture)
-- [Model Experiments](#model-experiments)
-- [Validation Strategy](#validation-strategy)
-- [Final Results](#final-results)
-- [Error Analysis](#error-analysis)
-- [Leakage Controls](#leakage-controls)
-- [Prediction Generation](#prediction-generation)
-- [API](#api)
-- [User Interface](#user-interface)
-- [Testing](#testing)
-- [Repository Structure](#repository-structure)
-- [Setup](#setup)
-- [Complete Workflow](#complete-workflow)
-- [Business Considerations](#business-considerations)
-- [Deployment Considerations](#deployment-considerations)
-- [Monday Handoff](#monday-handoff)
-- [Confidentiality](#confidentiality)
-- [AI Usage](#ai-usage)
-- [Key Takeaways](#key-takeaways)
+1. [Results at a Glance](#results-at-a-glance)
+2. [Overview](#overview)
+3. [System Architecture](#system-architecture)
+4. [Service Teams](#service-teams)
+5. [Dataset](#dataset)
+6. [Operational Target Audit](#operational-target-audit)
+7. [Modeling Approach](#modeling-approach)
+8. [Experiments](#experiments)
+9. [Validation Strategy](#validation-strategy)
+10. [Evaluation Results](#evaluation-results)
+11. [Error Analysis](#error-analysis)
+12. [Leakage Controls](#leakage-controls)
+13. [Prediction Generation](#prediction-generation)
+14. [API](#api)
+15. [Streamlit UI](#streamlit-ui)
+16. [Installation and Usage](#installation-and-usage)
+17. [Testing](#testing)
+18. [Repository Structure](#repository-structure)
+19. [Business Considerations](#business-considerations)
+20. [Deployment and Monitoring](#deployment-and-monitoring)
+21. [Handoff Priorities](#handoff-priorities)
+22. [Limitations](#limitations)
+23. [Confidentiality](#confidentiality)
+24. [AI Usage](#ai-usage)
+25. [Final Recommendation](#final-recommendation)
 
 ---
 
-## Introduction
+## Results at a Glance
 
-Kestrel Home Appliances receives customer service requests across multiple channels, including chat, WhatsApp, IVR, and email.
+| Metric | Result |
+|---|---:|
+| Historical bot accuracy vs `final_team` | **76.67%** |
+| Final seven-team router accuracy | **84.62%** |
+| Improvement over historical bot | **+7.95 pp** |
+| Seven-team router macro F1 | **84.02%** |
+| Seven-team router weighted F1 | **84.67%** |
+| Quality-gate accuracy | **94.09%** |
+| Quality-gate macro F1 | **91.91%** |
+| Automatic-routing coverage | **59.45%** |
+| Automatic-routing accuracy | **97.36%** |
+| Automatic-routing macro F1 | **97.22%** |
+| Requests withheld for clarification / data-quality handling | **40.55%** |
 
-Each request needs to be routed to one of seven service teams:
+> **Important:** 97.36% is the accuracy on the *automatically routed* validation subset (59.45% of requests). It is **not** overall system accuracy. The system is designed to withhold ambiguous requests rather than force them into a team.
 
-- Billing
-- Filters & Consumables
-- Installs & Demo
-- Product Advice
-- Repairs
-- Returns & Replacement
-- Warranty Claims
-
-The existing process uses a vendor routing bot. The original requirement was to build a classifier that matched the historical routing label (`team_label`) with at least 90% accuracy.
-
-During the resubmission analysis, an important distinction was identified:
-
-> `team_label` represents the historical routing bot's **initial routing decision**, not necessarily the team that ultimately resolved the request.
-
-The resolution log contains `final_team`, which records the team that ultimately closed the request.
-
-Because a substantial portion of requests moved from their initial team to another team, the final solution uses `final_team` as the **operational target**.
-
-The resulting model achieves:
-
-- **84.62% accuracy** on a chronological holdout
-- **84.02% macro F1**
-- **84.67% weighted F1**
-- **+7.95 percentage points** over the historical bot on the same holdout
-
-The solution uses a lightweight local NLP pipeline rather than a paid LLM or external AI API, making it reproducible and inexpensive to run.
-
-### Workflow
-
-```text
-Historical Data
-      ↓
-Data Understanding & EDA
-      ↓
-Operational Target Audit
-      ↓
-Target = final_team
-      ↓
-Data Cleaning & Team Normalization
-      ↓
-Chronological Validation
-      ↓
-NLP Feature Engineering
-      ↓
-Model Experiments
-      ↓
-Error Analysis
-      ↓
-Final Model
-      ↓
-Prediction Generation
-      ↓
-FastAPI Service
-      ↓
-Streamlit UI
-      ↓
-Automated Testing
-```
+All figures are measured on a chronological validation holdout (2,165 requests).
 
 ---
 
-## Executive Summary
+## Overview
 
-### Key finding
+Kestrel Home Appliances receives service requests through chat, WhatsApp, IVR and email. Each request must reach one of seven service teams. The existing process relies on a vendor routing bot.
 
-The original 90% requirement measured agreement with the historical routing bot.
-
-However, analysis of the resolution data showed:
+**The key finding.** The original requirement was to match the historical routing label (`team_label`) with ≥ 90% accuracy. Analysis of the resolution log showed that `team_label` is the bot's *initial* decision, not the team that ultimately resolved the request:
 
 - 10,822 historical requests
-- 2,471 requests, or **22.83%**, ended with a different team from the historical bot's initial routing
-- Historical bot agreement with `final_team`: **77.17%**
-- Requests with at least one recorded transfer: **2,696 / 10,822 = 24.91%**
+- 2,471 requests (**22.83%**) ended with a different team than the bot's initial routing
+- Bot agreement with `final_team`: **77.17%**
+- Requests with at least one transfer: 2,696 (**24.91%**)
 
-Therefore, simply maximizing agreement with `team_label` would primarily optimize for reproducing the system being replaced.
+Optimizing for `team_label` would mainly reproduce the system being replaced. This project therefore uses **`final_team` as the operational target** and measures improvement against the historical bot on the same holdout.
 
-For the resubmission, `final_team` is used as the operational target and yardstick.
+**Design principle.** The solution is a *selective routing system*: clear requests are routed automatically with high accuracy, while ambiguous, multi-intent or conflicting requests are withheld for human or data-quality handling.
 
-### Final model
-
-The selected model is a LinearSVC classifier using:
-
-- Word-level TF-IDF
-- Character-level TF-IDF
-- Request-time categorical metadata
-- Request-text engineered features
-- Policy-oriented intent indicators
-
-The model is trained only on information available when the request is created.
-
-### Holdout result
-
-| Metric | Historical Bot | Final Model |
-|---|---:|---:|
-| Accuracy | 76.67% | **84.62%** |
-| Macro F1 | — | **84.02%** |
-| Weighted F1 | — | **84.67%** |
-| Improvement | — | **+7.95 pp** |
-
-The model therefore improves substantially over the historical routing baseline while avoiding post-routing information leakage.
+The solution runs entirely locally on a scikit-learn pipeline. No paid LLM or external AI API is required.
 
 ---
 
-## Objective and Target Decision
+## System Architecture
 
-### Original client requirement
+### 1. Quality Gate and Selective Routing
 
-The initial requirement was:
-
-> Achieve at least 90% agreement with the historical `team_label`.
-
-This target was initially evaluated and a model achieved **96.49% chronological accuracy** against `team_label`.
-
-However, further investigation showed that `team_label` is effectively the historical bot's initial routing decision.
-
-The resolution data provides a more operationally meaningful outcome through `final_team`.
-
-### Why the target was changed
-
-The historical bot and final operational team differ for:
-
-**2,471 / 10,822 requests = 22.83%**
-
-The historical bot therefore agrees with the eventual resolution team only:
-
-**77.17% of the time** across the full historical dataset.
-
-This means a model optimized only for `team_label` can achieve very high agreement with the historical bot while still reproducing some of the routing behavior that generated transfers.
-
-### Final target
-
-The resubmission therefore defines:
+Every incoming request passes through a quality gate that decides whether it is safe to route automatically.
 
 ```text
-Target = final_team
+                       CUSTOMER REQUEST
+                              │
+                              ▼
+                 ┌──────────────────────┐
+                 │     QUALITY GATE     │
+                 └──────────┬───────────┘
+                            │
+          ┌─────────────────┼──────────────────┐
+          │                 │                  │
+          ▼                 ▼                  ▼
+      ROUTABLE       NEEDS_CLARIFICATION   MULTI_INTENT
+          │                 │                  │
+          ▼                 ▼                  ▼
+    7-TEAM ROUTER      Ask Question       Prioritize /
+          │                                 Split Issue
+          ▼
+    SERVICE TEAM
+
+                       DATA_CONFLICT
+                             │
+                             ▼
+                     Metadata Review
 ```
 
-`team_label` remains useful as a historical baseline, but is not used as the final operational target.
+| Gate outcome | Meaning | Action |
+|---|---|---|
+| `ROUTABLE` | Clear single intent, consistent metadata | Send to the seven-team router |
+| `NEEDS_CLARIFICATION` | Insufficient information (e.g. "please call back") | Ask the customer a clarifying question |
+| `MULTI_INTENT` | Request spans more than one team's scope | Prioritize or split into separate issues |
+| `DATA_CONFLICT` | Request text conflicts with metadata | Send to metadata review |
 
-This distinction is important:
+The same flow as a Mermaid diagram:
 
-> The objective is not to reproduce the old routing bot. The objective is to improve routing toward the team that ultimately resolved the request.
+```mermaid
+flowchart TD
+    A[Customer Request] --> B{Quality Gate}
+    B -->|ROUTABLE| C[Seven-Team Router]
+    B -->|NEEDS_CLARIFICATION| D[Ask Clarifying Question]
+    B -->|MULTI_INTENT| E[Prioritize / Split Issue]
+    B -->|DATA_CONFLICT| F[Metadata Review]
+    C --> G[Service Team]
+```
 
----
-
-## Tools & Technologies
-
-### Programming
-
-- Python 3.12+
-
-### Machine Learning
-
-- scikit-learn
-- LinearSVC
-- TF-IDF
-- OneHotEncoder
-- StandardScaler
-
-### Data Processing
-
-- pandas
-- NumPy
-- SciPy
-
-### Model Persistence
-
-- joblib
-
-### Backend
-
-- FastAPI
-- Uvicorn
-- Pydantic
-
-### Frontend / Demo
-
-- Streamlit
-
-### Testing
-
-- pytest
-- FastAPI TestClient
-- HTTPX
-
-### Development
-
-- Ubuntu/Linux
-- Python virtual environment
-- VS Code
-
-No paid LLM or external AI API is required.
-
----
-
-## Submission Artifacts
-
-The repository contains the reproducible routing solution, including:
-
-- Final model training code
-- Prediction-generation pipeline
-- Operational-target analysis
-- Model comparison
-- Error analysis
-- FastAPI routing service
-- Streamlit demonstration UI
-- Automated tests
-- Evaluation evidence
-- `outputs/predictions.csv`
-
-Client-provided customer data and other confidential artifacts are not intended for public distribution.
-
----
-
-## Dataset
-
-The project uses approximately 18 months of labelled historical service requests.
-
-### Training Dataset
-
-**10,822 requests**
-
-Schema:
+### 2. End-to-End Platform
 
 ```text
-request_id
-created_at_ist
-channel
-product_family
-warranty_status
-request_text
-source
-team_label
+┌──────────────┐     ┌────────────────┐     ┌───────────────────────────┐
+│ Streamlit UI │────▶│ FastAPI Service │────▶│ Persisted Model Artifact  │
+│  app/ui.py   │     │  app/main.py    │     │ models/kestrel_router.    │
+└──────────────┘     │ GET  /health    │     │ joblib                    │
+                     │ POST /route     │     └─────────────┬─────────────┘
+                     └────────────────┘                   │
+                                                          ▼
+                                        ┌──────────────────────────────────┐
+                                        │ Quality Gate → Seven-Team Router │
+                                        └──────────────────────────────────┘
 ```
 
-### Test Dataset
+| Layer | Component | Responsibility |
+|---|---|---|
+| Presentation | Streamlit (`app/ui.py`) | Interactive testing; shows predicted team and explanation |
+| Service | FastAPI (`app/main.py`) | `GET /health`, `POST /route`; applies the training-time feature pipeline |
+| Decision | Quality Gate + Router | Decides *whether* to route, then *where* |
+| Model | scikit-learn pipeline (joblib) | TF-IDF + metadata + engineered features → LinearSVC |
+| Evidence | `evaluation/`, `outputs/` | Metrics, error analysis, predictions |
 
-**2,178 requests**
-
-The test dataset contains the request-time fields but does not contain the target label.
-
-### Resolution Data
-
-The resolution log contains:
+### 3. Model Pipeline
 
 ```text
-request_id
-first_team
-final_team
-transfers
-resolved_at
+                      Request Text
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+        Word TF-IDF              Character TF-IDF
+        (1–2 grams)               (char_wb, 3–5)
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+      Request-time metadata (one-hot encoded)
+      channel · product_family · warranty_status · source
+                            │
+      Engineered features (scaled)
+      length · counts · intent indicators
+                            │
+                            ▼
+                  Feature Concatenation
+                            │
+                            ▼
+                        LinearSVC
+                            │
+                            ▼
+                     Predicted Team
 ```
 
-This dataset is used to identify the operational outcome and perform post-hoc analysis.
+### 4. Development Workflow
 
-Post-routing fields are deliberately excluded from model features.
-
-### Data Period
-
-| Dataset | Period |
-|---|---|
-| Training | 2025-04-01 → 2026-06-30 |
-| Test | 2026-07-01 → 2026-09-30 |
-
-### Data Sources
-
-Requests originate from:
-
-- CRM
-- Legacy Zoho
-
-The historical system migration occurred during the dataset period, so `source` is treated as a request-time feature.
+```text
+Historical Data → EDA → Operational Target Audit → Target = final_team
+      → Cleaning & Team Normalization → Chronological Validation
+      → NLP Feature Engineering → Model Experiments → Error Analysis
+      → Final Model → Prediction Generation → FastAPI → Streamlit UI
+      → Automated Testing
+```
 
 ---
 
@@ -334,39 +203,50 @@ The historical system migration occurred during the dataset period, so `source` 
 | Filters & Consumables | Filters, candles, membranes, jars, brushes, blades, AMC kits and spares |
 | Installs & Demo | Product installation, demonstrations and wall mounting |
 | Product Advice | Product usage and pre/post-purchase questions without a fault |
-| Repairs | Product faults, breakdowns, error codes, leaks, noise and technician-required issues |
+| Repairs | Faults, breakdowns, error codes, leaks, noise and technician-required issues |
 | Returns & Replacement | Damaged, wrong or incomplete deliveries, returns and exchanges |
-| Warranty Claims | Warranty registration, coverage and warranty claim requests |
+| Warranty Claims | Warranty registration, coverage and claim requests |
 
-### Historical Team Name Normalization
-
-Two historical team names were renamed:
+**Team-name normalization.** Two historical names are normalized before training and evaluation:
 
 ```text
-Installations  →  Installs & Demo
-Consumables    →  Filters & Consumables
+Installations → Installs & Demo
+Consumables   → Filters & Consumables
 ```
 
-These names are normalized before model training and evaluation.
+---
+
+## Dataset
+
+Approximately 18 months of labelled historical service requests.
+
+| Dataset | Rows | Period |
+|---|---:|---|
+| Training | 10,822 | 2025-04-01 → 2026-06-30 |
+| Test (unlabelled) | 2,178 | 2026-07-01 → 2026-09-30 |
+
+**Training schema:** `request_id`, `created_at_ist`, `channel`, `product_family`, `warranty_status`, `request_text`, `source`, `team_label`
+
+**Resolution log schema:** `request_id`, `first_team`, `final_team`, `transfers`, `resolved_at`. Used for the operational target and post-hoc analysis only; never as a model input.
+
+**Sources:** requests originate from the CRM and from legacy Zoho. Because the migration occurred during the data period, `source` is treated as a request-time feature.
 
 ---
 
 ## Operational Target Audit
 
-The resolution log was joined to the historical training requests using `request_id`.
-
-The audit found:
+The resolution log was joined to the training data on `request_id`.
 
 | Measure | Result |
 |---|---:|
 | Historical requests | 10,822 |
-| Historical bot agreement with final team | **77.17%** |
+| Bot agreement with final team | **77.17%** |
 | Historical mismatches | **2,471** |
 | Historical mismatch rate | **22.83%** |
-| Requests with ≥1 transfer | **2,696** |
+| Requests with ≥ 1 transfer | **2,696** |
 | Transfer rate | **24.91%** |
 
-The largest initial-team mismatch rates were observed for:
+Mismatch rate by the bot's initial team:
 
 | Initial Team | Mismatch Rate |
 |---|---:|
@@ -378,360 +258,151 @@ The largest initial-team mismatch rates were observed for:
 | Returns & Replacement | 3.58% |
 | Installs & Demo | 3.29% |
 
-This analysis is the primary reason the final model uses `final_team` instead of `team_label`.
-
----
-
-## Data Understanding & EDA
-
-Initial analysis covered:
-
-- Dataset size and schema
-- Missing values
-- Duplicate records
-- Team distribution
-- Channel distribution
-- Product-family distribution
-- Warranty-status distribution
-- Historical data sources
-- Request-text characteristics
-- Transfer patterns
-- Initial-team versus final-team routing
-- Legacy data quality issues
-
-### Important observations
-
-The historical dataset contains meaningful routing ambiguity.
-
-For example, requests initially assigned to Repairs or Filters & Consumables frequently ended up being resolved by another team.
-
-The text also contains short and ambiguous requests such as:
-
-```text
-"need help with my purifier"
-"mixer grinder query"
-"not happy with room heater"
-"please call back"
-```
-
-These cases are intrinsically harder to route using only information available at request creation.
+This audit is the primary reason the final model targets `final_team` instead of `team_label`.
 
 ---
 
 ## Modeling Approach
 
-The modeling pipeline uses a chronological train/validation split.
+**Inputs (request-time only):** `request_text`, `channel`, `product_family`, `warranty_status`, `source`
 
-The final target is:
+**Target:** `final_team`
 
-```text
-final_team
-```
+### Feature Engineering
 
-The model uses only request-time information:
+| Group | Details |
+|---|---|
+| Word TF-IDF | `ngram_range=(1,2)`, `min_df=2`, `sublinear_tf=True` |
+| Character TF-IDF | `analyzer=char_wb`, `ngram_range=(3,5)`, `min_df=2`, `sublinear_tf=True`; robust to misspellings and noisy text |
+| Categorical | One-hot: channel, product_family, warranty_status, source |
+| Text statistics | Text length, word count, question-mark, exclamation-mark, digit and rupee-symbol counts, order-ID indicator |
+| Intent indicators | Pattern-based counts for repair, installation, billing, warranty, return/replacement, consumables and product-advice intent |
 
-```text
-request_text
-channel
-product_family
-warranty_status
-source
-```
-
-No post-routing resolution information is used as an input feature.
-
----
-
-## Feature Engineering
-
-### Text Features
-
-Two complementary TF-IDF representations are used.
-
-#### Word TF-IDF
-
-```text
-ngram_range = (1, 2)
-min_df = 2
-sublinear_tf = True
-```
-
-This captures meaningful words and short phrases.
-
-#### Character TF-IDF
-
-```text
-analyzer = char_wb
-ngram_range = (3, 5)
-min_df = 2
-sublinear_tf = True
-```
-
-Character n-grams improve robustness to spelling variations, partial words and noisy customer text.
-
-### Categorical Features
-
-One-hot encoded request-time fields:
-
-- channel
-- product_family
-- warranty_status
-- source
-
-### Numeric/Text-Derived Features
-
-The final model also uses:
-
-- Request text length
-- Word count
-- Question-mark count
-- Exclamation-mark count
-- Digit count
-- Rupee-symbol count
-- Order-ID indicator
-- Repair-intent count
-- Installation-intent count
-- Billing-intent count
-- Warranty-intent count
-- Return/replacement-intent count
-- Consumables-intent count
-- Product-advice-intent count
-
-The intent indicators are generated using explicit request-text patterns.
-
----
-
-## Model Architecture
-
-The feature pipeline is:
-
-```text
-                    Request Text
-                         │
-             ┌───────────┴───────────┐
-             ↓                       ↓
-       Word TF-IDF             Character TF-IDF
-             │                       │
-             └───────────┬───────────┘
-                         │
-                Request-time Metadata
-                         │
-                   One-Hot Encoding
-                         │
-                Engineered Features
-                         │
-                    Scaling
-                         │
-                         ↓
-                 Feature Concatenation
-                         │
-                         ↓
-                    LinearSVC
-                         │
-                         ↓
-                  Predicted Team
-```
-
----
-
-## Classifier
-
-The final classifier is:
+### Classifier
 
 ```text
 LinearSVC
-C = 2.0
+C            = 2.0
 class_weight = "balanced"
-max_iter = 10000
+max_iter     = 10000
 ```
 
-`class_weight="balanced"` helps account for differences in team frequencies.
+`class_weight="balanced"` accounts for differing team frequencies. LinearSVC is not probability-calibrated, so no artificial probability score is exposed.
 
-No artificial probability score is exposed because the selected LinearSVC model is not probability-calibrated.
+### Tools and Technologies
+
+| Area | Stack |
+|---|---|
+| Language | Python 3.12+ |
+| ML | scikit-learn (LinearSVC, TF-IDF, OneHotEncoder, StandardScaler) |
+| Data | pandas, NumPy, SciPy |
+| Persistence | joblib |
+| Backend | FastAPI, Uvicorn, Pydantic |
+| Frontend | Streamlit |
+| Testing | pytest, FastAPI TestClient, HTTPX |
 
 ---
 
-## Model Experiments
+## Experiments
 
-Several approaches were compared using the same chronological validation methodology.
+**Historical-label experiments.** The best model against `team_label` reached **96.49%** accuracy. It exceeded the original 90% requirement but was not adopted as the operational objective after the resolution-outcome analysis.
 
-### Historical-label experiments
-
-The initial experiments targeted `team_label`.
-
-The best historical-label model achieved:
-
-**96.49% accuracy**
-
-against the historical routing labels.
-
-This exceeded the original 90% requirement but was not selected as the final operational objective after analyzing the resolution outcomes.
-
-### Final operational experiments
-
-Models were then evaluated against `final_team`.
-
-The experiment ladder included:
+**Operational experiments (target `final_team`).** All compared under the same chronological validation:
 
 1. Word TF-IDF + LinearSVC
 2. Word + character TF-IDF
 3. Text + request-time metadata
-4. Text + metadata + engineered request-time intent features
+4. Text + metadata + engineered intent features ← **selected**
 5. Policy-aware intent features
 6. Hierarchical routing experiment
-
-The selected model was **Experiment 4**:
-
-```text
-Word TF-IDF
-+
-Character TF-IDF
-+
-Request-time categorical metadata
-+
-Engineered intent features
-+
-LinearSVC
-```
-
-with:
-
-```text
-C = 2.0
-class_weight = balanced
-```
-
-Final chronological validation accuracy:
-
-**84.62%**
 
 ---
 
 ## Validation Strategy
 
-A random split was deliberately avoided.
+A random split was deliberately avoided. Data was sorted chronologically and split 80/20 to better approximate deployment.
 
-The data was sorted chronologically and split into:
-
-```text
-80% earlier requests → training
-20% later requests  → validation
-```
-
-### Training
-
-```text
-Rows: 8,657
-Period:
-2025-04-01 00:31
-→
-2026-03-30 19:44
-```
-
-### Validation
-
-```text
-Rows: 2,165
-Period:
-2026-03-30 20:18
-→
-2026-06-30 23:33
-```
-
-This better approximates deployment because the model is evaluated on later requests rather than randomly mixed historical requests.
+| Split | Rows | Period |
+|---|---:|---|
+| Training (earlier 80%) | 8,657 | 2025-04-01 00:31 → 2026-03-30 19:44 |
+| Validation (later 20%) | 2,165 | 2026-03-30 20:18 → 2026-06-30 23:33 |
 
 ---
 
-## Final Results
+## Evaluation Results
 
-### Final operational benchmark
+### Seven-team router vs historical bot
 
-| Model | Target | Validation Accuracy |
+| Model | Target | Accuracy |
 |---|---|---:|
 | Historical routing bot | `final_team` | 76.67% |
 | Final operational model | `final_team` | **84.62%** |
-
-### Improvement
-
-```text
-84.62% - 76.67% = +7.95 percentage points
-```
-
-### Final model metrics
+| **Improvement** | | **+7.95 pp** |
 
 | Metric | Score |
 |---|---:|
-| Accuracy | **84.62%** |
-| Macro F1 | **84.02%** |
-| Weighted F1 | **84.67%** |
+| Accuracy | 84.62% |
+| Macro F1 | 84.02% |
+| Weighted F1 | 84.67% |
 
-### Class-level F1
+### Per-team F1
 
 | Team | F1 |
 |---|---:|
-| Billing | 84.80% |
-| Filters & Consumables | 81.92% |
-| Installs & Demo | 85.36% |
-| Product Advice | 81.08% |
 | Repairs | **89.37%** |
+| Installs & Demo | 85.36% |
+| Billing | 84.80% |
 | Returns & Replacement | 83.38% |
 | Warranty Claims | 82.24% |
+| Filters & Consumables | 81.92% |
+| Product Advice | 81.08% |
 
-Repairs is the strongest-performing class, while Product Advice and Filters & Consumables contain more ambiguous requests.
+### Selective routing (Quality Gate + Router)
+
+| Metric | Result |
+|---|---:|
+| Quality-gate accuracy | 94.09% |
+| Quality-gate macro F1 | 91.91% |
+| Automatic-routing coverage | 59.45% |
+| Automatic-routing accuracy | 97.36% |
+| Automatic-routing macro F1 | 97.22% |
+| Withheld for clarification / data-quality handling | 40.55% |
+
+The 90%+ accuracy requirement is met for requests selected for automatic routing, rather than by forcing ambiguous requests into a team.
+
+### Historical bot vs model (same holdout)
+
+| Outcome | Requests |
+|---|---:|
+| Both correct | 1,589 |
+| Old bot wrong → model correct | **243** |
+| Old bot correct → model wrong | **71** |
+| Both wrong | 262 |
+
+The model corrected far more bot errors than it introduced, indicating it is not merely reproducing historical routing behavior.
 
 ---
 
 ## Error Analysis
 
-The final model produced:
-
 ```text
-Validation requests: 2,165
-Correct:             1,832
-Incorrect:             333
-Error rate:          15.38%
+Validation requests : 2,165
+Correct             : 1,832
+Incorrect           :   333
+Error rate          : 15.38%
 ```
 
-### Top confusion patterns
+**Largest confusion pairs:** Returns → Billing, Repairs → Warranty, Warranty → Returns, Returns → Product Advice, Product Advice → Warranty, Installs → Product Advice, Repairs → Returns, Repairs → Installs, Installs → Filters & Consumables. Errors concentrate where text is short or carries multiple intents.
 
-The largest recurring confusion pairs include:
-
-- Returns & Replacement → Billing
-- Repairs → Warranty Claims
-- Warranty Claims → Returns & Replacement
-- Returns & Replacement → Product Advice
-- Product Advice → Warranty Claims
-- Installs & Demo → Product Advice
-- Repairs → Returns & Replacement
-- Repairs → Installs & Demo
-- Installs & Demo → Filters & Consumables
-
-These errors largely occur where the request text is short or contains multiple possible intents.
-
-### Error rate by channel
-
-| Channel | Error Rate |
-|---|---:|
-| WhatsApp | 16.04% |
-| IVR | 16.04% |
-| Email | 14.78% |
-| Chat | 14.37% |
-
-### Error rate by product family
-
-| Product Family | Error Rate |
-|---|---:|
-| Robot Vacuum | 20.45% |
-| Mixer Grinder | 16.91% |
-| Room Heater | 16.73% |
-| Induction Cooktop | 15.61% |
-| Ceiling Fan | 14.51% |
-| Air Fryer | 13.37% |
-| Water Purifier | 13.06% |
-
-Robot Vacuum requests are the hardest product category in the validation set.
-
-### Error rate by warranty status
+| Channel | Error Rate | | Product Family | Error Rate |
+|---|---:|---|---|---:|
+| WhatsApp | 16.04% | | Robot Vacuum | 20.45% |
+| IVR | 16.04% | | Mixer Grinder | 16.91% |
+| Email | 14.78% | | Room Heater | 16.73% |
+| Chat | 14.37% | | Induction Cooktop | 15.61% |
+| | | | Ceiling Fan | 14.51% |
+| | | | Air Fryer | 13.37% |
+| | | | Water Purifier | 13.06% |
 
 | Warranty Status | Error Rate |
 |---|---:|
@@ -739,113 +410,41 @@ Robot Vacuum requests are the hardest product category in the validation set.
 | Out of warranty | 15.71% |
 | Shield | 13.35% |
 
----
-
-## Historical Bot vs Model
-
-On the same chronological validation set:
-
-| Outcome | Requests |
-|---|---:|
-| Old bot wrong → model correct | **243** |
-| Old bot correct → model wrong | **71** |
-| Both wrong | **262** |
-| Both correct | **1,589** |
-
-The model therefore corrected substantially more historical-bot errors than the number of historical-bot-correct cases that it displaced.
-
-This supports the conclusion that the model is not simply reproducing the historical routing behavior.
+Examples of intrinsically ambiguous requests: *"need help with my purifier"*, *"mixer grinder query"*, *"please call back"*. These motivate the quality gate.
 
 ---
 
 ## Leakage Controls
 
-The following post-routing fields were excluded from model features:
+**Excluded from model features:** `team_label`, `first_team`, `final_team`, `transfers`, `resolved_at`
 
-- `team_label`
-- `first_team`
-- `final_team`
-- `transfers`
-- `resolved_at`
+**Used (available at request creation):** `request_text`, `channel`, `product_family`, `warranty_status`, `source`, and text-derived features.
 
-The final model uses only information available at request creation:
-
-- `request_text`
-- `channel`
-- `product_family`
-- `warranty_status`
-- `source`
-- Text-derived features
-
-`team_label` is retained only as a historical benchmark and is not used as a model feature.
-
-`final_team` is the evaluation target, not an input feature.
-
-This separation prevents resolution outcomes from leaking into the routing decision.
+`team_label` is retained only as a historical benchmark; `final_team` is the evaluation target, never an input.
 
 ---
 
 ## Prediction Generation
 
-The final model is trained on the complete labelled training dataset and generates predictions for all:
+The final model is retrained on the full labelled training set and predicts all 2,178 test requests.
 
-**2,178 test requests**
-
-The submission file is:
-
-```text
-outputs/predictions.csv
-```
-
-Schema:
-
-```text
-request_id,team
-```
-
-Validation checks performed:
-
-- 2,178 prediction rows
-- 2,178 unique request IDs
-- No missing predictions
-- No invalid team names
-- All seven teams represented
-- Correct submission column names
+- **Output:** `outputs/predictions.csv` with columns `request_id,team`
+- **Checks performed:** 2,178 rows, 2,178 unique request IDs, no missing predictions, no invalid team names, all seven teams represented, correct column names
 
 ---
 
 ## API
 
-The routing service is implemented using FastAPI.
-
-### Start the API
-
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The API exposes:
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Service and model status |
+| `POST /route` | Route a single request |
 
-```text
-GET /health
-POST /route
-```
-
-### Health endpoint
-
-```text
-GET /health
-```
-
-Returns the service/model status.
-
-### Route endpoint
-
-```text
-POST /route
-```
-
-Example request:
+**Example request**
 
 ```json
 {
@@ -857,7 +456,7 @@ Example request:
 }
 ```
 
-Example response:
+**Example response**
 
 ```json
 {
@@ -866,54 +465,56 @@ Example response:
 }
 ```
 
-The API loads the persisted model artifact and reproduces the same feature-engineering pipeline used during training.
+The API loads the persisted model artifact and reproduces the training-time feature pipeline.
 
 ---
 
-## User Interface
-
-A Streamlit interface is provided for interactive testing.
-
-Start it with:
+## Streamlit UI
 
 ```bash
 streamlit run app/ui.py
 ```
 
-The UI allows the user to enter:
+Enter request text, product family, warranty status, channel and source. The UI calls the FastAPI service and displays the predicted team with a routing explanation.
 
-- Request text
-- Product family
-- Warranty status
-- Channel
-- Source
+---
 
-The interface sends the request to the FastAPI service and displays:
+## Installation and Usage
 
-- Predicted team
-- Routing explanation
+```bash
+# 1. Clone
+git clone <PRIVATE_REPOSITORY_URL>
+cd kestrel-service-routing
+
+# 2. Virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Dependencies
+pip install -r requirements.txt
+
+# 4. Train the final model (writes models/kestrel_router.joblib and outputs/predictions.csv)
+python src/train_final.py
+
+# 5. Run tests
+python -m pytest -q
+
+# 6. Start the API
+uvicorn app.main:app --reload
+
+# 7. Start the UI (new terminal)
+streamlit run app/ui.py
+```
 
 ---
 
 ## Testing
 
-The project includes automated tests covering the service and routing behavior.
-
-Run:
-
 ```bash
 python -m pytest -q
 ```
 
-Final validation:
-
-```text
-5 passed
-```
-
-The current test suite passes successfully.
-
-A dependency-level deprecation warning may be displayed by the FastAPI/Starlette testing stack; it does not represent a test failure.
+Current result: **5 passed**. A dependency-level deprecation warning from the FastAPI/Starlette testing stack may appear; it is not a test failure.
 
 ---
 
@@ -921,19 +522,16 @@ A dependency-level deprecation warning may be displayed by the FastAPI/Starlette
 
 ```text
 kestrel-service-routing/
-│
 ├── app/
-│   ├── main.py
-│   └── ui.py
-│
-├── data/
+│   ├── main.py                 # FastAPI service
+│   └── ui.py                   # Streamlit UI
+├── data/                       # Confidential client data
 │   ├── train.csv
 │   ├── test_unlabelled.csv
 │   ├── resolution_log.csv
 │   ├── teams.csv
 │   ├── sample_submission.csv
 │   └── README.txt
-│
 ├── evaluation/
 │   ├── model_comparison.csv
 │   ├── model_evidence.md
@@ -948,370 +546,104 @@ kestrel-service-routing/
 │   ├── routing_mismatch_matrix.csv
 │   ├── team_label_to_final_team.csv
 │   └── representative_hard_cases.csv
-│
 ├── models/
 │   └── kestrel_router.joblib
-│
 ├── outputs/
 │   └── predictions.csv
-│
 ├── src/
 │   ├── train_final.py
 │   ├── create_evidence.py
 │   ├── error_analysis.py
 │   └── ...
-│
 ├── tests/
-│   └── ...
-│
 ├── references/
-│   └── ...
-│
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Setup
-
-### 1. Clone the repository
-
-```bash
-git clone <PRIVATE_REPOSITORY_URL>
-cd kestrel-service-routing
-```
-
-### 2. Create a virtual environment
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Train the final model
-
-```bash
-python src/train_final.py
-```
-
-This trains the operational model against `final_team` and generates:
-
-```text
-outputs/predictions.csv
-models/kestrel_router.joblib
-```
-
-### 5. Run tests
-
-```bash
-python -m pytest -q
-```
-
-### 6. Start the API
-
-```bash
-uvicorn app.main:app --reload
-```
-
-### 7. Start the UI
-
-In another terminal:
-
-```bash
-streamlit run app/ui.py
-```
-
----
-
-## Complete Workflow
-
-The complete workflow is:
-
-```text
-1. Load historical request data
-        ↓
-2. Load resolution log
-        ↓
-3. Normalize historical team names
-        ↓
-4. Audit team_label against final_team
-        ↓
-5. Select final_team as operational target
-        ↓
-6. Sort requests chronologically
-        ↓
-7. Create 80/20 chronological holdout
-        ↓
-8. Build request-time features
-        ↓
-9. Train and compare candidate models
-        ↓
-10. Select Experiment 4
-        ↓
-11. Perform error analysis
-        ↓
-12. Retrain final model on complete training data
-        ↓
-13. Generate test predictions
-        ↓
-14. Expose model through FastAPI
-        ↓
-15. Provide Streamlit interface
-        ↓
-16. Run automated tests
-```
-
----
-
 ## Business Considerations
 
-### Historical routing cost
+The operations policy specifies ₹305 per transfer, ₹260 average additional contact for a misdirected request, a ₹540 technician visit, and an existing bot cost of ₹3.2 lakh/year.
 
-The supplied operations policy specifies:
-
-- ₹305 per transfer
-- ₹260 average additional customer contact for a misdirected request
-- ₹540 technician visit
-- Existing routing bot cost: ₹3.2 lakh/year
-
-The historical resolution data contains:
-
-- 3,902 total recorded transfers
-- 2,696 requests with at least one transfer
-
-A policy-based historical cost illustration is:
+The historical data records 3,902 transfers across 2,696 requests. A policy-based illustration:
 
 ```text
-3,902 × ₹305 = ₹11,90,110
+3,902 transfers × ₹305 = ₹11,90,110
+2,471 mismatches × ₹260 = ₹6,42,460
+Combined illustrative amount = ₹18,32,570
 ```
 
-and:
+> These figures are **not audited savings estimates**. They illustrate the potential operational impact of routing and transfer events over the historical period.
 
-```text
-2,471 × ₹260 = ₹6,42,460
-```
-
-for a combined illustrative amount of:
-
-```text
-₹18,32,570
-```
-
-over the historical period represented by these records.
-
-These figures are **not audited savings estimates**. They are policy-based illustrations of the potential operational impact associated with routing and transfer events.
-
-### Business interpretation
-
-The most important business finding is not simply the model's raw accuracy.
-
-The historical bot has a measurable routing gap:
-
-```text
-22.83% of historical requests
-```
-
-ended on a different team from the initial routing decision.
-
-The new model improves the same-holdout operational accuracy from:
-
-```text
-76.67% → 84.62%
-```
-
-However, additional production monitoring is required before claiming actual savings.
+The central business finding is the routing gap: 22.83% of historical requests ended on a different team than the bot's initial routing. The model improves same-holdout operational accuracy from 76.67% to 84.62%, and selective routing reaches 97.36% on the automatically routed subset. Actual savings should be claimed only after production monitoring.
 
 ---
 
-## Deployment Considerations
+## Deployment and Monitoring
 
-Before production deployment, the following should be monitored:
-
-### 1. Routing accuracy
-
-Track:
-
-- Final-team accuracy
-- Macro F1
-- Per-team precision/recall
-- Confusion patterns
-
-### 2. Transfer rate
-
-Monitor:
-
-```text
-Requests requiring reassignment
---------------------------------
-Total requests
-```
-
-This is a more directly operational metric than model accuracy alone.
-
-### 3. Human escalation
-
-Low-confidence or ambiguous requests should have a fallback mechanism rather than forcing an automatic routing decision.
-
-### 4. Data drift
-
-Monitor changes in:
-
-- Product mix
-- Channel mix
-- Customer vocabulary
-- Warranty distribution
-- Team distribution
-
-### 5. Retraining
-
-A production system should periodically retrain using newly resolved requests and reassess performance against the latest operational outcomes.
+| Area | What to track |
+|---|---|
+| Routing accuracy | Final-team accuracy, macro F1, per-team precision/recall, confusion patterns |
+| Transfer rate | Requests requiring reassignment ÷ total requests (the most operational metric) |
+| Gate behavior | Share of requests per gate outcome; coverage vs accuracy trade-off |
+| Human escalation | Fallback path for low-confidence and ambiguous requests |
+| Data drift | Product mix, channel mix, customer vocabulary, warranty and team distributions |
+| Retraining | Periodic retraining on newly resolved requests against latest outcomes |
 
 ---
 
-## Monday Handoff
+## Handoff Priorities
 
-The first three priorities for handoff are:
+1. **Validate against live outcomes.** Run in shadow mode and compare predictions with the teams that ultimately resolve requests.
+2. **Monitor routing quality.** Transfer rate, final-team agreement, per-team error rates, high-volume confusion pairs.
+3. **Establish a feedback loop.** Store `request → prediction → actual final team → transfer outcome → resolution` so future models learn from real outcomes rather than historical bot decisions.
 
-### 1. Validate against live operational outcomes
+---
 
-Run the model in shadow mode and compare predictions with the teams that ultimately resolve requests.
+## Limitations
 
-### 2. Monitor routing quality
-
-Track:
-
-- Transfer rate
-- Final-team agreement
-- Per-team error rates
-- High-volume confusion pairs
-
-### 3. Establish a production feedback loop
-
-Store:
-
-```text
-request
-→ model prediction
-→ actual final team
-→ transfer outcome
-→ resolution
-```
-
-This allows future models to learn from real operational outcomes rather than only historical bot decisions.
+- The model is trained on historical `final_team` outcomes, which themselves reflect past process quality.
+- Short and multi-intent requests remain intrinsically hard; roughly 40% of validation requests are withheld by the gate.
+- LinearSVC is not probability-calibrated, so confidence scores are not exposed.
+- Robot Vacuum requests and WhatsApp/IVR channels show the highest error rates.
+- Cost figures are policy-based illustrations, not audited savings.
+- Results come from a single chronological holdout; production shadow testing is required before retiring the existing process.
 
 ---
 
 ## Confidentiality
 
-The assignment data is confidential client data.
-
-Customer-level records, internal operational information and other confidential artifacts should not be published publicly.
-
-The repository is intended to remain private where required by the assignment.
+The assignment data is confidential client data. Customer-level records and internal operational artifacts must not be published. The repository is intended to remain private where required.
 
 ---
 
 ## AI Usage
 
-AI assistance was used during development for:
-
-- Debugging implementation issues
-- Reviewing code structure
-- Improving documentation
-- Reasoning about model evaluation and leakage
-- Structuring error-analysis workflows
-- Reviewing API and UI implementation
-
-The final model itself does not depend on a paid LLM API.
-
-The production routing model is a locally executable scikit-learn pipeline based on TF-IDF, request-time features and LinearSVC.
+AI assistance was used for debugging, code-structure review, documentation, reasoning about evaluation and leakage, error-analysis workflows, and API/UI review. The production routing model is a locally executable scikit-learn pipeline and does **not** depend on a paid LLM API.
 
 ---
 
-## Key Takeaways
+## Final Recommendation
 
-### 1. The evaluation target matters
+Run a **controlled pilot or shadow deployment** rather than immediately retiring the existing routing process. The system should:
 
-The original 90% requirement measured agreement with the historical routing bot.
+1. Automatically route high-confidence requests.
+2. Ask for clarification when information is insufficient.
+3. Detect metadata/text conflicts.
+4. Handle multi-intent requests explicitly.
+5. Measure actual final-team outcomes and transfer rates in production.
+6. Increase automatic-routing coverage only while quality remains acceptable.
 
-The resolution data showed that the historical bot's initial decision differed from the eventual team for **22.83%** of requests.
+| Measure | Result |
+|---|---:|
+| Historical bot vs `final_team` | 76.67% |
+| Final seven-team router | 84.62% |
+| Improvement | +7.95 pp |
+| Quality-gate accuracy | 94.09% |
+| Automatic-routing coverage | 59.45% |
+| Automatic-routing accuracy | 97.36% |
+| Automatic-routing macro F1 | 97.22% |
 
-Therefore, `final_team` is a more operationally meaningful target.
-
-### 2. The new model improves on the historical routing baseline
-
-On the same chronological holdout:
-
-```text
-Historical bot: 76.67%
-Final model:    84.62%
-
-Improvement:    +7.95 percentage points
-```
-
-### 3. The model is leakage-safe
-
-Only request-time information is used for prediction.
-
-Post-routing resolution fields are excluded from the feature set.
-
-### 4. The model is reproducible
-
-The system runs locally without a paid external AI API and includes:
-
-- Training pipeline
-- Saved model artifact
-- Prediction generation
-- FastAPI service
-- Streamlit UI
-- Automated tests
-- Evaluation evidence
-- Error analysis
-
-### 5. The remaining gap is actionable
-
-The main failure modes involve ambiguous customer language and overlapping intents, particularly around:
-
-- Returns vs Billing
-- Repairs vs Warranty
-- Returns vs Product Advice
-- Repairs vs Installations
-- Filters & Consumables vs Repairs
-
-These cases should be priorities for future data collection, policy refinement and model improvement.
-
----
-
-## Final Decision
-
-The final submission uses:
-
-```text
-Operational target: final_team
-
-Validation strategy: chronological 80/20 split
-
-Final model:
-    Word TF-IDF
-    + Character TF-IDF
-    + Request-time metadata
-    + Engineered intent features
-    + LinearSVC
-
-Accuracy:       84.62%
-Macro F1:       84.02%
-Weighted F1:    84.67%
-
-Historical bot on same holdout: 76.67%
-
-Improvement: +7.95 percentage points
-```
-
-The model should therefore be evaluated as an **operational routing improvement over the historical bot**, rather than as a reproduction of the historical routing labels.
+> **Bottom line:** evaluate this project as a **selective routing system**, not as a model claiming 97.36% accuracy on every incoming request.

@@ -1,0 +1,2 @@
+model,target,split,accuracy,macro_f1,weighted_f1,train_rows,validation_rows
+TF-IDF + metadata + LinearSVC,quality_label,chronological_80_20,0.9408775981524249,0.9191393191646768,0.9406164137388832,8657,2165

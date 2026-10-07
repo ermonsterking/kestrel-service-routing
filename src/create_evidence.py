@@ -98,9 +98,9 @@ holdout_uplift_pp = (
 # Experiment 4, same chronological holdout.
 # --------------------------------------------------
 
-old_bot_wrong_model_correct = 239
-old_bot_correct_model_wrong = 75
-both_wrong = 266
+old_bot_wrong_model_correct = 243
+old_bot_correct_model_wrong = 71
+both_wrong = 262
 
 
 # --------------------------------------------------
