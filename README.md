@@ -9,6 +9,28 @@ An end-to-end machine learning system for automatically routing Kestrel Home cus
 > **Improvement: +7.95 percentage points**
 
 ---
+## Final Selective Routing Result
+
+The final architecture uses a quality gate before team routing.
+
+On the chronological validation holdout:
+
+- Quality-gate accuracy: **94.09%**
+- Quality-gate macro F1: **91.91%**
+- Automatic-routing coverage: **59.45%**
+- Automatic-routing accuracy: **97.36%**
+- Automatic-routing macro F1: **97.22%**
+- Requests withheld for clarification/data-quality handling: **40.55%**
+
+The 90%+ routing requirement is therefore achieved for the requests selected for automatic routing, rather than by forcing ambiguous requests into a team.
+
+The system intentionally separates:
+- ROUTABLE requests
+- MULTI_INTENT requests
+- NEEDS_CLARIFICATION requests
+- DATA_CONFLICT requests
+
+This selective-routing architecture is the recommended final design.
 
 ## Table of Contents
 
