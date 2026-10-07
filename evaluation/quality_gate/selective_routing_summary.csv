@@ -1,0 +1,2 @@
+total_validation,actual_routable,actual_routable_coverage,actual_routable_router_accuracy,gate_selected_routable,gate_selected_coverage,gate_selected_router_accuracy,gate_rejected,gate_rejected_rate
+2165,1321,0.6101616628175519,0.9606358819076457,1287,0.5944572748267898,0.9735819735819736,878,0.40554272517321016
