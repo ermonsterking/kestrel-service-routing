@@ -67,9 +67,9 @@ For context, the historical bot achieves **77.17%** agreement with `final_team` 
 
 On the chronological holdout:
 
-- Old bot wrong → model correct: **239**
-- Old bot correct → model wrong: **75**
-- Both wrong: **266**
+- Old bot wrong → model correct: **243**
+- Old bot correct → model wrong: **71**
+- Both wrong: **262**
 
 The model therefore corrects a meaningful number of cases where the historical bot disagreed with the eventual operational outcome, while also introducing some new errors.
 
